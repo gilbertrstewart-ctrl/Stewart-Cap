@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Activity, Briefcase, Star, Radar, Building2, Moon, Sun, LogOut, User } from "lucide-react";
+import { Activity, Briefcase, Star, Radar, Building2, Newspaper, Moon, Sun, LogOut, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ const links = [
   { to: "/watchlist", label: "Watchlist", icon: Star, testid: "nav-watchlist" },
   { to: "/movers", label: "Movers", icon: Radar, testid: "nav-movers" },
   { to: "/brokers", label: "Brokers", icon: Building2, testid: "nav-brokers" },
+  { to: "/articles", label: "Articles", icon: Newspaper, testid: "nav-articles" },
 ];
 
 export default function Navbar() {

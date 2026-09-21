@@ -8,6 +8,8 @@ import Dashboard from "@/pages/Dashboard";
 import WatchlistPage from "@/pages/WatchlistPage";
 import MoversPage from "@/pages/MoversPage";
 import BrokersPage from "@/pages/BrokersPage";
+import ArticlesPage from "@/pages/ArticlesPage";
+import ArticlePage from "@/pages/ArticlePage";
 
 function App() {
   return (
@@ -21,6 +23,8 @@ function App() {
                 <Route path="watchlist" element={<WatchlistPage />} />
                 <Route path="movers" element={<MoversPage />} />
                 <Route path="brokers" element={<BrokersPage />} />
+                <Route path="articles" element={<ArticlesPage />} />
+                <Route path="articles/:id" element={<ArticlePage />} />
               </Route>
             </Routes>
             <Toaster position="top-right" richColors theme="light" />

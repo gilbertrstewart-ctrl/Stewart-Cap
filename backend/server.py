@@ -18,6 +18,7 @@ import ai_analysis
 import user_data
 import alerts
 import recommendations
+import articles
 
 app = FastAPI(title="ApexTicker API")
 
@@ -36,6 +37,7 @@ app.include_router(ai_analysis.router)
 app.include_router(user_data.router)
 app.include_router(alerts.router)
 app.include_router(recommendations.router)
+app.include_router(articles.router)
 
 app.add_middleware(
     CORSMiddleware,
