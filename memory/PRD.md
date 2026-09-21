@@ -52,3 +52,9 @@ Build an app to track investments, a stock watchlist, stocks reaching 52-week hi
 - THEME: Red/white/blue palette, light-blue background is now the default; gains blue, losses red; navy ticker tape with red LIVE badge. Dark mode still available via toggle (key `stewart_theme`).
 - Tested: /app/test_reports/iteration_4.json — 24/24 backend, frontend E2E pass.
 - Ticker tape: black bg, white symbols, green up / red down (user request).
+
+## 2026-06 — Iteration 5 (all four picks built, tested: /app/test_reports/iteration_5.json)
+- Price Alerts: /api/alerts CRUD; 60s background worker (alerts.py) emails via Resend when target crossed; one-shot; bell button per watchlist row with count badge.
+- Watchlist Sorting: % change gainers/losers, closest to 52W high, name, symbol, order added (localStorage `watch_sort`).
+- Ticker Speed Control: gear in ticker tape → speed slow/normal/fast + All markets / My watchlist (localStorage).
+- Daily Digest Email: DigestCard on /watchlist (toggle + Send now); scheduler weekdays after 08:00 America/Toronto, once/day per opted-in user (`digest_enabled`, `digest_last_sent` on user doc).

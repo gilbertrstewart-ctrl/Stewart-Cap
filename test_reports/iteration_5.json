@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 5 (Price Alerts + Watchlist Sorting + Ticker Speed Control + Daily Digest) fully verified. Backend: 11/11 pytest passing in /app/backend/tests/test_alerts_digest.py — GET /api/alerts requires auth (401); POST /api/alerts with direction='sideways' -> 422; target=0 -> 422; symbol='NOTREAL123' -> 400 with detail 'Could not find ticker NOTREAL123'; happy-path POST /api/alerts {AAPL, target:1, above} returns alerts list containing the new alert with numeric 'price' field; GET verifies persistence; DELETE removes it. Background worker: created AAPL target=1 above as delivered@resend.dev, waited up to 90s, alert became triggered with triggered_at and numeric triggered_price populated. Digest: GET /api/digest/settings returns {enabled,last_sent,send_hour:8,timezone:'America/Toronto'}; PUT enabled:true persists; PUT false persists; GET /api/digest/preview returns arrays for watchlist, near_high, near_low, big_movers, market_near_high; POST /api/digest/send as delivered@resend.dev -> {sent:true, email_id:<str>}; POST as admin (undeliverable domain) returns 502 (not 500) as expected. Frontend E2E on live preview URL: signed-out, ticker-settings-btn opens ticker-settings-popover and ticker-source-watchlist has disabled attribute present. Logged in as admin: ticker-speed-fast sets .animate-marquee animation-duration to 28s, ticker-speed-slow to 90s; setting persists across reload (28s after reload). ticker-source-watchlist / ticker-source-all switch works. /watchlist: digest-card visible with 'Morning digest email' copy, digest-toggle click shows toast 'Daily digest on — arrives weekdays at 8:00 AM ET'. watchlist-sort-select opens with 6 options ('% change · top gainers/losers', 'Closest to 52W high', 'Name A→Z', 'Symbol A→Z', 'Order added'); selecting 'Closest to 52W high' reorders watch-row-* and choice persists after reload. watch-alert-CNQ.TO opens price-alert-dialog; picking alert-direction-below, entering 1 in alert-target-input and clicking alert-save-btn creates an alert-row and, after closing, watch-alert-count-CNQ.TO badge shows '1'. Reopening dialog and clicking alert-delete-<id> removes the row and the badge disappears. Regression: /, /movers, /brokers render with correct title 'STEWART CAP — Investment Tracker' and no error text.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "digest-send-now-btn as admin (undeliverable domain)", "issue": "Backend correctly returns 502 but no error toast was observed in the UI after click — the network error path may not surface a user-facing toast. Not blocking (admin domain is intentionally undeliverable), but consider showing an error toast when POST /api/digest/send fails.", "affected_selectors": ["[data-testid=\"digest-send-now-btn\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "PriceAlertDialog / DialogContent", "issues": ["Carry-over Radix a11y warning: 'Missing Description or aria-describedby={undefined} for DialogContent' — same warning as previous iterations; add DialogDescription (or VisuallyHidden) to silence."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_alerts_digest.py", "/app/test_reports/pytest/pytest_iter5.xml"],
+  "action_items": [
+    "(Low) Show an error toast on digest-send-now-btn failure so users see undeliverable/network errors.",
+    "(Low, carry-over) Add DialogDescription to PriceAlertDialog and other DialogContents to silence Radix a11y warnings."
+  ],
+  "critical_code_review_comments": [
+    "alerts.py uses ObjectId(alert_id) in delete without try/except — a malformed alert_id string will raise bson.errors.InvalidId and bubble as 500 instead of 400/404. Wrap in try/except and return 400 for invalid ObjectId.",
+    "alerts.check_price_alerts marks the alert triggered BEFORE attempting to send the email; that's the correct 'one-shot' semantics for undeliverable recipients (won't retry indefinitely), but it means a transient Resend outage silently loses the notification. Consider a separate 'email_sent_at' field so ops can spot deliveries that failed.",
+    "run_scheduled_digests loops sequentially — fine at low user counts but consider asyncio.gather with concurrency limit as user base grows.",
+    "DigestSettings PUT does not read-modify-write user.digest_last_sent — the returned last_sent uses the stale value from the token's user dict, which is acceptable but the shape is consistent with GET so no functional issue.",
+    "alerts_worker sleeps 60s BEFORE first tick — a minor delay on cold start; consider running one tick immediately on startup for faster observed cross detection.",
+    "Frontend TickerTape persists tape_speed/tape_source in localStorage as expected (verified 28s survives reload). Watchlist sort choice also persists (watch_sort). Good.",
+    "Signed-out ticker-source-watchlist correctly has HTML disabled attribute set (verified via getAttribute('disabled') returned empty string i.e. attribute present)."
+  ],
+  "updated_files": ["/app/backend/tests/test_alerts_digest.py", "/app/test_reports/iteration_5.json"],
+  "success_rate": {"backend": "100% (11/11 new alerts+digest tests; 24/24 regressions from iter4 still valid)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@apexticker.com / admin123 (undeliverable); delivered@resend.dev / test1234 (deliverable) — both used as instructed.",
+  "seed_data_creation": "Tests created and cleaned up AAPL alerts for both admin and delivered@resend.dev users. Digest settings for admin toggled ON then OFF (final state OFF). delivered@resend.dev's digest_last_sent was updated by POST /api/digest/send. FE test created and deleted an alert on CNQ.TO for admin.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alerts endpoints under /api/alerts (auth-required): POST validates via Pydantic (direction ^(above|below)$, target>0), auto-registers unknown Yahoo symbols else 400. Alerts worker runs every 60s (alerts_worker in alerts.py) and marks triggered_at + triggered_price then sends email best-effort. Digest endpoints under /api/digest/{settings,preview,send}; scheduler run_scheduled_digests skips weekends and pre-8AM America/Toronto and once-per-day per user. Frontend testids: ticker-settings-btn, ticker-settings-popover, ticker-speed-{slow|normal|fast}, ticker-source-{all|watchlist}, watchlist-sort-select, watch-row-{SYMBOL}, watch-alert-{SYMBOL}, watch-alert-count-{SYMBOL}, price-alert-dialog, alert-direction-{above|below}, alert-target-input, alert-save-btn, alert-row (row) + alert-delete-{id}, digest-card, digest-toggle, digest-send-now-btn. Localstorage keys: tape_speed, tape_source, watch_sort. Do NOT trigger /api/ai/analyze or /api/ai/email in future runs (credit cost). Only send emails to delivered@resend.dev.",
+  "rca of the issue": "N/A — all specified features work as designed. Only carry-over a11y warnings and one low-priority missing error toast on digest send failure."
+}
