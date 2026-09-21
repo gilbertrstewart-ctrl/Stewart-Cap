@@ -97,7 +97,7 @@ export default function AiAnalysisModal({ symbol, onClose }) {
         {loading && (
           <div className="h-64 grid place-items-center gap-3">
             <Loader2 className="w-7 h-7 animate-spin text-amber-400" />
-            <p className="text-sm text-muted-foreground">Claude is analyzing the move…</p>
+            <p className="text-sm text-muted-foreground">{provider === "openai" ? "ChatGPT" : "Claude"} is analyzing the move…</p>
           </div>
         )}
 

@@ -216,3 +216,91 @@ def test_ai_analyze(s):
 def test_ai_analyze_unknown(s):
     r = s.post(f"{BASE_URL}/api/ai/analyze", json={"symbol": "ZZZZZ"}, timeout=30)
     assert r.status_code == 404
+
+
+# ---- AI Analyze provider selection ----
+def test_ai_analyze_openai(s):
+    r = s.post(f"{BASE_URL}/api/ai/analyze",
+               json={"symbol": "AAPL", "provider": "openai"}, timeout=120)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["provider"] == "openai"
+    assert d["model"] == "gpt-5.4"
+    a = d["analysis"]
+    assert "catalyst_summary" in a and "sentiment_score" in a
+
+
+def test_ai_analyze_anthropic(s):
+    r = s.post(f"{BASE_URL}/api/ai/analyze",
+               json={"symbol": "AAPL", "provider": "anthropic"}, timeout=120)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["provider"] == "anthropic"
+    assert d["model"] == "claude-sonnet-4-6"
+
+
+# ---- AI Email ----
+@pytest.fixture(scope="session")
+def deliverable_user_token(s):
+    """Register a user with delivered@resend.dev (unique per run)."""
+    unique = f"delivered+test{uuid.uuid4().hex[:8]}@resend.dev"
+    r = s.post(f"{BASE_URL}/api/auth/register",
+               json={"name": "Delivered Tester", "email": unique, "password": "secret123"}, timeout=60)
+    if r.status_code != 200:
+        # If deliverable email domain still triggers welcome-email issue, we tolerate — welcome is best-effort.
+        pytest.skip(f"deliverable user registration failed: {r.status_code} {r.text}")
+    return r.json()["token"], unique
+
+
+def test_ai_email_requires_auth(s):
+    r = s.post(f"{BASE_URL}/api/ai/email",
+               json={"symbol": "NVDA", "provider": "anthropic"}, timeout=30)
+    assert r.status_code == 401
+
+
+def test_ai_email_sends(s, deliverable_user_token):
+    token, email = deliverable_user_token
+    h = {"Authorization": f"Bearer {token}"}
+    r = s.post(f"{BASE_URL}/api/ai/email",
+               json={"symbol": "NVDA", "provider": "anthropic"}, headers=h, timeout=120)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d.get("status") == "sent"
+    assert d.get("to") == email
+
+
+# ---- Google session ----
+def test_google_session_invalid(s):
+    r = s.post(f"{BASE_URL}/api/auth/session",
+               json={"session_id": "invalid-session-xyz-not-real"}, timeout=30)
+    assert r.status_code == 401
+
+
+# ---- News ----
+def test_news_aapl(s):
+    r = s.get(f"{BASE_URL}/api/market/news/AAPL", timeout=30)
+    assert r.status_code == 200
+    d = r.json()
+    assert d["symbol"] == "AAPL"
+    assert isinstance(d["news"], list)
+    assert len(d["news"]) >= 1
+    assert len(d["news"]) <= 4
+    for n in d["news"]:
+        assert n.get("title") and n.get("link")
+
+
+@pytest.mark.parametrize("sym", ["TD.TO", "RY.TO"])
+def test_news_tsx(s, sym):
+    r = s.get(f"{BASE_URL}/api/market/news/{sym}", timeout=30)
+    assert r.status_code == 200
+    d = r.json()
+    assert d["symbol"] == sym
+    assert isinstance(d["news"], list)
+    # TSX news may be sparse — allow empty but structure should be valid
+    for n in d["news"]:
+        assert n.get("title") and n.get("link")
+
+
+def test_news_unknown(s):
+    r = s.get(f"{BASE_URL}/api/market/news/ZZZZZ", timeout=15)
+    assert r.status_code == 404

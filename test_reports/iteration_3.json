@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 3 (Google sign-in + ChatGPT/Claude engine toggle + Resend transactional email + Latest News feed) fully verified. Backend: 24/24 pytest tests pass — added tests for /api/ai/analyze with provider=openai (returns provider=openai, model=gpt-5.4) and provider=anthropic (claude-sonnet-4-6), /api/ai/email requires auth (401 without) and returns {status:'sent', to: <user email>} with a delivered@resend.dev user, /api/auth/session returns 401 for invalid Google session_id, /api/market/news/AAPL returns up to 4 items with title/publisher/link, and TSX news for TD.TO/RY.TO are valid structure (may be empty for some tickers — accepted). Registration with a delivered@resend.dev-style address still succeeds even when Resend welcome email best-effort fires. Frontend E2E: AuthModal opens from nav-register-btn and shows auth-google-btn + email/password fields; email register stores apex_token; loginWithGoogle target URL is https://auth.emergentagent.com/?redirect=<origin>/ (asserted target, did not complete external Google login as required). Movers → tab-52w-high → high-mover-BNS.TO card → stock-detail-modal opens with stock-news section and 4 news-item-{i} external anchors (first href from finance.yahoo.com). detail-analyze-btn opens ai-cause-analysis-card with ai-engine-toggle containing engine-anthropic and engine-openai buttons; initial Claude analysis rendered (Catalyst Summary, sentiment gauge, likely_catalysts, key_metrics, takeaways, risk_flags), switching to engine-openai re-runs and renders the ChatGPT analysis. ai-email-btn: when logged in, backend API returns {status:'sent', to: user email} (verified via UI-driven fetch); when logged out, clicking triggers the 'Sign in to email yourself the analysis' toast and opens the auth-modal. Ticker tape live, portfolio empty state renders, brokers page reachable via navbar.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AiAnalysisModal", "issues": ["Loading text hardcoded to 'Claude is analyzing the move…' even when the selected provider is ChatGPT — copy is misleading during OpenAI re-runs."]},
+      {"screen": "StockDetailModal / AiAnalysisModal / AuthModal", "issues": ["Radix DialogContent a11y warning: `DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users — visible in console for stock-detail-modal and ai-cause-analysis-card. AuthModal already provides DialogTitle/Description; the other two only render Title inside a conditional block (after quote/data loaded), so the initial loading state trips the warning."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Low) In AiAnalysisModal.jsx loading state, replace 'Claude is analyzing the move…' with a provider-aware string (e.g., `${provider === 'openai' ? 'ChatGPT' : 'Claude'} is analyzing the move…`).",
+    "(Low) Render DialogTitle unconditionally in StockDetailModal and AiAnalysisModal (or wrap a hidden placeholder in VisuallyHidden during loading) to silence Radix a11y console errors."
+  ],
+  "critical_code_review_comments": [
+    "ai_analysis.py DEFAULT_MODELS silently falls back to 'anthropic' for any unknown provider — consider returning 400 for invalid providers so clients don't get confused by a mismatched response.model.",
+    "ai_analysis.py cache_id includes round(change_percent) which mutates during the day as Yahoo updates → each intraday change_percent tick invalidates the cached AI result, potentially causing many LLM calls on a volatile stock. Consider anchoring cache to a coarser bucket (e.g., day only, or day+direction).",
+    "auth.py get_current_user: ObjectId(payload['sub']) is now wrapped in try/except (fixed since iteration_2). ✅",
+    "market_data.py /news uses in-memory _news_cache — per-pod only; acceptable for MVP but note it will diverge under multiple workers.",
+    "market_data.py /news TTL is 30s on empty results (good) and 300s on hits (good).",
+    "emails.py raises HTTPException 502 on Resend failures — that's fine for /api/ai/email but register wraps send_welcome_email in try/except so failure won't block signup (verified)."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@apexticker.com / admin123 for admin; fresh delivered+<rand>@resend.dev users created per run to exercise Resend email path.",
+  "seed_data_creation": "Fresh test users registered against /api/auth/register during backend + FE runs. Left in DB (safe).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New endpoints for this iteration: POST /api/ai/analyze accepts {provider:'openai'|'anthropic', model?}; POST /api/ai/email (Bearer required); POST /api/auth/session (Google exchange, 401 on invalid); GET /api/market/news/{symbol} returns up to 4 items and 404 on unknown. TSX news may be empty for some tickers (TD.TO/RY.TO usually populated, others sparse). Use delivered@resend.dev-style addresses for email tests — apex domains still return 422 undeliverable. Frontend loginWithGoogle only sets window.location.href, so playwright asserts on the computed target URL rather than the redirect itself.",
+  "rca of the issue": "N/A — no functional bugs found."
+}

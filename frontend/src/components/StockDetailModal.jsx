@@ -65,6 +65,7 @@ export default function StockDetailModal({ symbol, onClose }) {
       <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto" data-testid="stock-detail-modal">
         {!quote ? (
           <div className="h-72 grid place-items-center">
+            <DialogTitle className="sr-only">Stock details</DialogTitle>
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (

@@ -59,7 +59,8 @@ async def run_analysis(symbol: str, provider: str = "anthropic", model: str = No
     provider = provider if provider in DEFAULT_MODELS else "anthropic"
     model = model or DEFAULT_MODELS[provider]
     day_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    cache_id = f"{symbol}:{provider}:{model}:{day_key}:{round(q['change_percent'])}"
+    bucket = "up" if q["change_percent"] >= 0 else "down"
+    cache_id = f"{symbol}:{provider}:{model}:{day_key}:{bucket}"
 
     cached = await db.ai_analysis.find_one({"_id": cache_id})
     if cached:
