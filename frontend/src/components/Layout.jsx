@@ -7,7 +7,7 @@ import AuthModal from "@/components/AuthModal";
 
 export default function Layout() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pt-9">
       <TickerTape />
       <Navbar />
       <MarketOverview />
