@@ -21,11 +21,11 @@ const links = [
 
 export default function Navbar() {
   const { user, logout, openAuth } = useAuth();
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("apex_theme");
-    const isDark = stored ? stored === "dark" : true;
+    const stored = localStorage.getItem("stewart_theme");
+    const isDark = stored === "dark";
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
   }, []);
@@ -34,7 +34,7 @@ export default function Navbar() {
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("apex_theme", next ? "dark" : "light");
+    localStorage.setItem("stewart_theme", next ? "dark" : "light");
   };
 
   return (
@@ -45,7 +45,7 @@ export default function Navbar() {
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         <div className="flex items-center gap-8">
           <NavLink to="/" data-testid="brand-logo" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-primary grid place-items-center shadow-lg shadow-primary/30">
+            <div className="w-9 h-9 rounded-lg bg-red-600 grid place-items-center shadow-lg shadow-red-600/30">
               <Activity className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
             </div>
             <div className="leading-none">
@@ -96,7 +96,7 @@ export default function Navbar() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} data-testid="logout-btn" className="text-rose-400">
+                <DropdownMenuItem onClick={logout} data-testid="logout-btn" className="text-red-600">
                   <LogOut className="w-4 h-4 mr-2" /> Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

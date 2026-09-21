@@ -69,24 +69,110 @@ for _sym, _s in UNIVERSE.items():
     }
 
 
-async def _fetch_yahoo(sym: str):
+_EXCH = {
+    "NMS": "NASDAQ", "NGM": "NASDAQ", "NCM": "NASDAQ", "NAS": "NASDAQ", "NYQ": "NYSE", "ASE": "NYSE American",
+    "PCX": "NYSE Arca", "BTS": "BATS", "TOR": "TSX", "VAN": "TSXV", "CVE": "TSXV", "NEO": "NEO",
+}
+_ALLOWED_EXCH = set(_EXCH)
+
+
+def _exch_name(code: str) -> str:
+    return _EXCH.get(code or "", code or "—")
+
+
+async def _fetch_yahoo_meta(client, sym: str):
+    r = await client.get(f"{YAHOO}{sym}", params={"interval": "1d", "range": "1d"})
+    return r.json()["chart"]["result"][0]["meta"]
+
+
+async def _fetch_yahoo(sym: str, client=None):
     try:
-        async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
-            r = await client.get(f"{YAHOO}{sym}", params={"interval": "1d", "range": "1d"})
-        m = r.json()["chart"]["result"][0]["meta"]
+        if client is None:
+            async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as c:
+                m = await _fetch_yahoo_meta(c, sym)
+        else:
+            m = await _fetch_yahoo_meta(client, sym)
         price = m.get("regularMarketPrice")
         prev = m.get("chartPreviousClose") or m.get("previousClose")
         if price is None or not prev:
             return None
+        fallback = UNIVERSE.get(sym, {})
         return {
             "price": round(float(price), 2),
             "prev_close": round(float(prev), 2),
-            "high_52": round(float(m.get("fiftyTwoWeekHigh") or UNIVERSE[sym]["high_52"]), 2),
-            "low_52": round(float(m.get("fiftyTwoWeekLow") or UNIVERSE[sym]["low_52"]), 2),
+            "high_52": round(float(m.get("fiftyTwoWeekHigh") or fallback.get("high_52") or price), 2),
+            "low_52": round(float(m.get("fiftyTwoWeekLow") or fallback.get("low_52") or price), 2),
             "source": "live", "as_of": m.get("regularMarketTime"),
+            "_meta": m,
         }
     except Exception:
         return None
+
+
+def _add_symbol(sym: str, name: str, exchange: str, sector: str, live: dict):
+    UNIVERSE[sym] = {
+        "symbol": sym, "name": name, "sector": sector or "—", "exchange": exchange,
+        "base_price": live["price"], "day_change_pct": 0.0, "high_52": live["high_52"], "low_52": live["low_52"],
+        "pe": 0.0, "market_cap": 0.0, "volume": round((live.get("_meta") or {}).get("regularMarketVolume", 0) / 1e6, 1),
+        "dividend_yield": 0.0, "prev_close": live["prev_close"],
+    }
+    _LIVE[sym] = {k: v for k, v in live.items() if k != "_meta"}
+
+
+async def register_symbol(sym: str, name: str = None, exchange: str = None, sector: str = None, client=None):
+    """Add any Yahoo-resolvable US/TSX symbol to the live universe (persisted)."""
+    sym = sym.upper().strip()
+    if sym in UNIVERSE:
+        return UNIVERSE[sym]
+    live = await _fetch_yahoo(sym, client)
+    if not live:
+        return None
+    m = live["_meta"]
+    if (m.get("instrumentType") or "EQUITY") not in ("EQUITY", "ETF"):
+        return None
+    name = name or m.get("longName") or m.get("shortName") or sym
+    exchange = exchange or _exch_name(m.get("exchangeName"))
+    _add_symbol(sym, name, exchange, sector, live)
+    await db.symbols.update_one(
+        {"symbol": sym}, {"$set": {"symbol": sym, "name": name, "exchange": exchange, "sector": sector or "—"}}, upsert=True
+    )
+    return UNIVERSE[sym]
+
+
+async def load_saved_symbols():
+    """Re-register user-added symbols on startup."""
+    docs = await db.symbols.find({}, {"_id": 0}).to_list(2000)
+    if not docs:
+        return
+    async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
+        await asyncio.gather(
+            *[register_symbol(d["symbol"], d.get("name"), d.get("exchange"), d.get("sector"), client) for d in docs],
+            return_exceptions=True,
+        )
+
+
+async def yahoo_search(q: str, limit: int = 8) -> list:
+    """Look up US/TSX equities & ETFs on Yahoo and register them so they have live quotes."""
+    try:
+        async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
+            r = await client.get(
+                "https://query1.finance.yahoo.com/v1/finance/search",
+                params={"q": q, "quotesCount": 15, "newsCount": 0},
+            )
+            hits = [
+                h for h in r.json().get("quotes", [])
+                if h.get("symbol") and h.get("quoteType") in ("EQUITY", "ETF") and h.get("exchange") in _ALLOWED_EXCH
+            ][:limit]
+            await asyncio.gather(
+                *[
+                    register_symbol(h["symbol"], h.get("longname") or h.get("shortname"), _exch_name(h.get("exchange")), h.get("sector"), client)
+                    for h in hits if h["symbol"] not in UNIVERSE
+                ],
+                return_exceptions=True,
+            )
+            return [h["symbol"] for h in hits if h["symbol"] in UNIVERSE]
+    except Exception:
+        return []
 
 
 async def ensure_fresh(force: bool = False):
@@ -96,10 +182,12 @@ async def ensure_fresh(force: bool = False):
     if not force and now - _last_refresh < LIVE_TTL:
         return
     _last_refresh = now
-    results = await asyncio.gather(*[_fetch_yahoo(s) for s in UNIVERSE], return_exceptions=True)
-    for sym, res in zip(UNIVERSE.keys(), results):
+    syms = list(UNIVERSE.keys())
+    async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
+        results = await asyncio.gather(*[_fetch_yahoo(s, client) for s in syms], return_exceptions=True)
+    for sym, res in zip(syms, results):
         if isinstance(res, dict):
-            _LIVE[sym] = res
+            _LIVE[sym] = {k: v for k, v in res.items() if k != "_meta"}
 
 
 def quote(symbol: str) -> dict:
@@ -231,6 +319,8 @@ async def get_movers():
 @router.get("/quote/{symbol}")
 async def get_quote(symbol: str):
     await ensure_fresh()
+    if symbol not in UNIVERSE:
+        await register_symbol(symbol)
     return quote(symbol)
 
 
@@ -245,8 +335,15 @@ async def search(q: str = ""):
     ql = q.lower().strip()
     if not ql:
         return {"results": all_quotes()[:12]}
-    results = [quote(sym) for sym, s in UNIVERSE.items() if ql in sym.lower() or ql in s["name"].lower()]
-    return {"results": results}
+    local = [sym for sym, s in UNIVERSE.items() if ql in sym.lower() or ql in s["name"].lower()]
+    remote = await yahoo_search(q) if len(ql) >= 1 else []
+    ordered = []
+    for sym in local + remote:
+        if sym not in ordered:
+            ordered.append(sym)
+    exact = [s for s in ordered if s.lower() == ql or s.lower().split(".")[0] == ql]
+    rest = [s for s in ordered if s not in exact]
+    return {"results": [quote(s) for s in (exact + rest)[:12]]}
 
 
 _news_cache = {}

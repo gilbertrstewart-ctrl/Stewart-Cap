@@ -7,7 +7,7 @@ export default function StockCard({ quote, onOpen, right, footer, testid }) {
     <div
       data-testid={testid}
       onClick={onOpen}
-      className="group cursor-pointer rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-[#1C2234] transition-all"
+      className="group cursor-pointer rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:bg-secondary transition-all"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">

@@ -50,6 +50,7 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await auth.seed_admin()
     try:
+        await asyncio.wait_for(market_data.load_saved_symbols(), timeout=20)
         await asyncio.wait_for(market_data.ensure_fresh(force=True), timeout=15)
     except Exception:
         pass

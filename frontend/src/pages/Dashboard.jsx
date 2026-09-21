@@ -10,7 +10,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { fmtCurrency, fmtPct, fmtSigned, fmtPrice, trendColor } from "@/utils/format";
 import { toast } from "sonner";
 
-const COLORS = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#F43F5E", "#06B6D4", "#EC4899", "#84CC16"];
+const COLORS = ["#1D4ED8", "#DC2626", "#60A5FA", "#F87171", "#0B2A6F", "#93C5FD", "#991B1B", "#3B82F6"];
 
 export default function Dashboard() {
   const { user, openAuth } = useAuth();
@@ -93,7 +93,7 @@ export default function Dashboard() {
                         {fmtSigned(h.gain)} ({fmtPct(h.gain_percent)})
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-rose-400" data-testid={`remove-holding-${h.symbol}`} onClick={() => remove(h.id, h.symbol)}>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-600" data-testid={`remove-holding-${h.symbol}`} onClick={() => remove(h.id, h.symbol)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -112,7 +112,7 @@ export default function Dashboard() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ background: "#151926", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                      contentStyle={{ background: "#FFFFFF", border: "1px solid #BFD7F5", color: "#0B1F4D", borderRadius: 8, fontSize: 12 }}
                       formatter={(v, n) => [fmtCurrency(v), n]}
                     />
                   </PieChart>

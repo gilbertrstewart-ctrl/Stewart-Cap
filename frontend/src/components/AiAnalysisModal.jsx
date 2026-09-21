@@ -57,8 +57,8 @@ export default function AiAnalysisModal({ symbol, onClose }) {
       <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto" data-testid="ai-cause-analysis-card">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/15 grid place-items-center">
-              <Sparkles className="w-5 h-5 text-amber-400" />
+            <div className="w-9 h-9 rounded-lg bg-red-600/15 grid place-items-center">
+              <Sparkles className="w-5 h-5 text-red-600" />
             </div>
             <div>
               <DialogTitle className="font-heading text-xl">AI Cause Analysis</DialogTitle>
@@ -96,13 +96,13 @@ export default function AiAnalysisModal({ symbol, onClose }) {
 
         {loading && (
           <div className="h-64 grid place-items-center gap-3">
-            <Loader2 className="w-7 h-7 animate-spin text-amber-400" />
+            <Loader2 className="w-7 h-7 animate-spin text-red-600" />
             <p className="text-sm text-muted-foreground">{provider === "openai" ? "ChatGPT" : "Claude"} is analyzing the move…</p>
           </div>
         )}
 
         {error && (
-          <div data-testid="ai-error" className="rounded-lg bg-rose-500/10 text-rose-400 px-4 py-3 text-sm">{error}</div>
+          <div data-testid="ai-error" className="rounded-lg bg-red-600/10 text-red-600 px-4 py-3 text-sm">{error}</div>
         )}
 
         {a && (
@@ -161,7 +161,7 @@ export default function AiAnalysisModal({ symbol, onClose }) {
                 <ul className="space-y-1.5">
                   {a.analyst_takeaways.map((t, i) => (
                     <li key={i} className="text-sm flex gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /> {t}
+                      <CheckCircle2 className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" /> {t}
                     </li>
                   ))}
                 </ul>
@@ -173,7 +173,7 @@ export default function AiAnalysisModal({ symbol, onClose }) {
                 <ul className="space-y-1.5">
                   {a.risk_flags.map((t, i) => (
                     <li key={i} className="text-sm flex gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" /> {t}
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" /> {t}
                     </li>
                   ))}
                 </ul>

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from db import db
 from auth import get_current_user
-from market_data import quote, UNIVERSE, ensure_fresh
+from market_data import quote, UNIVERSE, ensure_fresh, register_symbol
 
 router = APIRouter(prefix="/api", tags=["user-data"])
 
@@ -30,11 +30,12 @@ async def get_watchlist(user: dict = Depends(get_current_user)):
 
 @router.post("/watchlist")
 async def add_watchlist(payload: WatchInput, user: dict = Depends(get_current_user)):
-    if payload.symbol not in UNIVERSE:
-        raise HTTPException(status_code=400, detail="Unknown symbol")
+    symbol = payload.symbol.upper().strip()
+    if symbol not in UNIVERSE and not await register_symbol(symbol):
+        raise HTTPException(status_code=400, detail=f"Could not find ticker {symbol}. Try e.g. AAPL or TD.TO")
     await db.watchlists.update_one(
         {"user_id": user["id"]},
-        {"$addToSet": {"symbols": payload.symbol}, "$setOnInsert": {"user_id": user["id"]}},
+        {"$addToSet": {"symbols": symbol}, "$setOnInsert": {"user_id": user["id"]}},
         upsert=True,
     )
     return await get_watchlist(user)
@@ -100,11 +101,12 @@ async def get_portfolio(user: dict = Depends(get_current_user)):
 
 @router.post("/portfolio")
 async def add_holding(payload: HoldingInput, user: dict = Depends(get_current_user)):
-    if payload.symbol not in UNIVERSE:
-        raise HTTPException(status_code=400, detail="Unknown symbol")
+    symbol = payload.symbol.upper().strip()
+    if symbol not in UNIVERSE and not await register_symbol(symbol):
+        raise HTTPException(status_code=400, detail=f"Could not find ticker {symbol}. Try e.g. AAPL or TD.TO")
     await db.holdings.insert_one({
         "user_id": user["id"],
-        "symbol": payload.symbol,
+        "symbol": symbol,
         "shares": payload.shares,
         "avg_price": payload.avg_price,
         "created_at": datetime.now(timezone.utc).isoformat(),

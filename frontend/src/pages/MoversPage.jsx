@@ -45,7 +45,7 @@ export default function MoversPage() {
           </TabsList>
 
           <TabsContent value="big" className="mt-5">
-            <p className="text-sm text-muted-foreground mb-4">Stocks that moved more than 10% today — tap <span className="text-amber-400">AI analysis</span> to understand the cause.</p>
+            <p className="text-sm text-muted-foreground mb-4">Stocks that moved more than 10% today — tap <span className="text-red-600">AI analysis</span> to understand the cause.</p>
             {data.big_movers.length === 0 && (
               <div className="rounded-xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
                 No stocks are up or down more than 10% right now. This list fills up when the market gets volatile.
@@ -59,7 +59,7 @@ export default function MoversPage() {
                   testid={`big-mover-${q.symbol}`}
                   onOpen={() => openStockDetail(q.symbol)}
                   right={
-                    <Badge className={`border-0 ${q.direction === "up" ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>
+                    <Badge className={`border-0 ${q.direction === "up" ? "bg-blue-600/15 text-blue-700" : "bg-red-600/15 text-red-600"}`}>
                       {q.direction === "up" ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
                       {q.direction === "up" ? "Surging" : "Plunging"}
                     </Badge>
@@ -68,7 +68,7 @@ export default function MoversPage() {
                     <button
                       data-testid={`analyze-${q.symbol}`}
                       onClick={(e) => { e.stopPropagation(); openAiAnalysis(q.symbol); }}
-                      className="w-full mt-3 flex items-center justify-center gap-1.5 text-sm font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded-lg py-2 transition-colors"
+                      className="w-full mt-3 flex items-center justify-center gap-1.5 text-sm font-medium bg-red-600/10 text-red-600 hover:bg-red-600/20 rounded-lg py-2 transition-colors"
                     >
                       <Sparkles className="w-4 h-4" /> AI Cause Analysis
                     </button>
@@ -84,7 +84,7 @@ export default function MoversPage() {
               {data.near_high.map((q) => (
                 <StockCard key={q.symbol} quote={q} testid={`high-mover-${q.symbol}`} onOpen={() => openStockDetail(q.symbol)}
                   right={
-                    <Badge className={`border-0 ${q.at_high ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-500/10 text-emerald-400"}`}>
+                    <Badge className={`border-0 ${q.at_high ? "bg-blue-600/20 text-blue-800" : "bg-blue-600/10 text-blue-700"}`}>
                       <Bell className="w-3 h-3 mr-1" /> {q.at_high ? "At high" : `${q.pct_from_high}%`}
                     </Badge>
                   }
@@ -98,7 +98,7 @@ export default function MoversPage() {
             <Grid>
               {data.near_low.map((q) => (
                 <StockCard key={q.symbol} quote={q} testid={`low-mover-${q.symbol}`} onOpen={() => openStockDetail(q.symbol)}
-                  right={<Badge className="border-0 bg-rose-500/10 text-rose-400"><ArrowDown className="w-3 h-3 mr-1" /> {q.pct_from_low}%</Badge>}
+                  right={<Badge className="border-0 bg-red-600/10 text-red-600"><ArrowDown className="w-3 h-3 mr-1" /> {q.pct_from_low}%</Badge>}
                   footer={<Footer label="Above 52W low" value={`${q.pct_from_low}%`} />} />
               ))}
             </Grid>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
+import { fmtPrice, fmtPct, tapeTrendColor } from "@/utils/format";
 import { useModals } from "@/context/ModalContext";
 
 export default function TickerTape() {
@@ -28,9 +28,9 @@ export default function TickerTape() {
   return (
     <div
       data-testid="running-stock-ticker-tape"
-      className="fixed top-0 left-0 w-full z-50 h-9 bg-[#05060a]/95 border-b border-white/10 backdrop-blur-md overflow-hidden flex items-center"
+      className="fixed top-0 left-0 w-full z-50 h-9 bg-[#0B2A6F] border-b border-white/10 overflow-hidden flex items-center"
     >
-      <div className="flex-shrink-0 h-full px-3 flex items-center gap-1.5 bg-primary text-primary-foreground font-heading font-bold text-[11px] uppercase tracking-wider z-10">
+      <div className="flex-shrink-0 h-full px-3 flex items-center gap-1.5 bg-red-600 text-white font-heading font-bold text-[11px] uppercase tracking-wider z-10">
         <span className="w-1.5 h-1.5 rounded-full bg-white live-dot" /> Live
       </div>
       <div className="flex whitespace-nowrap animate-marquee">
@@ -41,9 +41,9 @@ export default function TickerTape() {
             onClick={() => openStockDetail(q.symbol)}
             className="inline-flex items-center gap-2 px-4 text-xs font-num hover:bg-white/5 h-9 transition-colors"
           >
-            <span className="text-slate-200 font-semibold">{q.symbol}</span>
-            <span className="text-slate-400">{fmtPrice(q.price)}</span>
-            <span className={trendColor(q.change_percent)}>{fmtPct(q.change_percent)}</span>
+            <span className="text-white font-semibold">{q.symbol}</span>
+            <span className="text-blue-200">{fmtPrice(q.price)}</span>
+            <span className={tapeTrendColor(q.change_percent)}>{fmtPct(q.change_percent)}</span>
           </button>
         ))}
       </div>

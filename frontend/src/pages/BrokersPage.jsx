@@ -18,7 +18,7 @@ export default function BrokersPage() {
       </div>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-2 w-fit">
-        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+        <ShieldCheck className="w-4 h-4 text-blue-700" />
         Links open the broker's official site in a new tab. ApexTicker never handles your credentials.
       </div>
 
@@ -33,7 +33,7 @@ export default function BrokersPage() {
               target="_blank"
               rel="noopener noreferrer"
               data-testid={`broker-card-${b.name.replace(/[^a-zA-Z]/g, "")}`}
-              className="group rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-[#1C2234] transition-all"
+              className="group rounded-xl border border-border bg-card p-5 hover:border-primary/40 hover:bg-secondary transition-all"
             >
               <div className="flex items-start justify-between">
                 <div className="w-11 h-11 rounded-lg bg-primary/15 grid place-items-center">

@@ -24,7 +24,8 @@ export const fmtMarketCap = (b) => {
 
 export const fmtVolume = (m) => (m == null ? "—" : `${Number(m).toFixed(1)}M`);
 
-// green when positive, red when negative
-export const trendColor = (n) => (Number(n) >= 0 ? "text-emerald-400" : "text-rose-400");
-export const trendBg = (n) => (Number(n) >= 0 ? "bg-emerald-500/10" : "bg-rose-500/10");
-export const trendHex = (n) => (Number(n) >= 0 ? "#10B981" : "#F43F5E");
+// blue when positive, red when negative
+export const trendColor = (n) => (Number(n) >= 0 ? "text-blue-700 dark:text-blue-400" : "text-red-600 dark:text-red-400");
+export const trendBg = (n) => (Number(n) >= 0 ? "bg-blue-600/10" : "bg-red-600/10");
+export const trendHex = (n) => (Number(n) >= 0 ? "#1D4ED8" : "#DC2626");
+export const tapeTrendColor = (n) => (Number(n) >= 0 ? "text-sky-300" : "text-red-300");

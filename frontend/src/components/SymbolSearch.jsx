@@ -1,21 +1,50 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Loader2, CornerDownLeft } from "lucide-react";
 import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
 import { Badge } from "@/components/ui/badge";
 
 export default function SymbolSearch({ onSelect, selected }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const reqId = useRef(0);
 
   useEffect(() => {
-    let active = true;
-    api.get("/market/search", { params: { q } }).then((r) => active && setResults(r.data.results)).catch(() => {});
-    return () => {
-      active = false;
-    };
+    const id = ++reqId.current;
+    setLoading(true);
+    const t = setTimeout(() => {
+      api
+        .get("/market/search", { params: { q } })
+        .then((r) => id === reqId.current && setResults(r.data.results))
+        .catch(() => id === reqId.current && setResults([]))
+        .finally(() => id === reqId.current && setLoading(false));
+    }, q ? 300 : 0);
+    return () => clearTimeout(t);
   }, [q]);
+
+  const pick = async (s) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSelect(s);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const typed = q.trim().toUpperCase();
+    if (!typed) return;
+    const exact = results.find((r) => r.symbol === typed || r.symbol.split(".")[0] === typed);
+    pick(exact || results[0] || { symbol: typed });
+  };
+
+  const typed = q.trim().toUpperCase();
 
   return (
     <div className="space-y-2">
@@ -25,18 +54,24 @@ export default function SymbolSearch({ onSelect, selected }) {
           data-testid="symbol-search-input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search AAPL, Shopify, TD…"
-          className="pl-9"
+          onKeyDown={onKeyDown}
+          autoFocus
+          placeholder="Type a ticker (AAPL, TD.TO, CNQ) and press Enter"
+          className="pl-9 pr-9"
         />
+        {(loading || submitting) && (
+          <Loader2 data-testid="symbol-search-loading" className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
+        )}
       </div>
-      <div className="max-h-52 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+      <div className="max-h-60 overflow-y-auto rounded-lg border border-border divide-y divide-border">
         {results.map((s) => (
           <button
             key={s.symbol}
             type="button"
+            disabled={submitting}
             data-testid={`symbol-option-${s.symbol}`}
-            onClick={() => onSelect(s)}
-            className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-secondary transition-colors ${
+            onClick={() => pick(s)}
+            className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-secondary transition-colors disabled:opacity-60 ${
               selected === s.symbol ? "bg-primary/10" : ""
             }`}
           >
@@ -53,6 +88,25 @@ export default function SymbolSearch({ onSelect, selected }) {
             </div>
           </button>
         ))}
+        {!loading && typed && results.length === 0 && (
+          <button
+            type="button"
+            disabled={submitting}
+            data-testid="symbol-add-typed"
+            onClick={() => pick({ symbol: typed })}
+            className="w-full flex items-center justify-between px-3 py-3 text-left hover:bg-secondary transition-colors"
+          >
+            <span className="text-sm">
+              Add <span className="font-num font-semibold">{typed}</span> anyway
+            </span>
+            <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+              <CornerDownLeft className="w-3 h-3" /> Enter
+            </span>
+          </button>
+        )}
+        {!loading && !typed && results.length === 0 && (
+          <div className="px-3 py-3 text-sm text-muted-foreground">Start typing a US or TSX ticker…</div>
+        )}
       </div>
     </div>
   );

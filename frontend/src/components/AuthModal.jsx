@@ -85,7 +85,7 @@ export default function AuthModal() {
           </div>
 
           {error && (
-            <p data-testid="auth-error" className="text-sm text-rose-400 bg-rose-500/10 rounded-lg px-3 py-2">
+            <p data-testid="auth-error" className="text-sm text-red-600 bg-red-600/10 rounded-lg px-3 py-2">
               {error}
             </p>
           )}

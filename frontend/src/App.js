@@ -23,7 +23,7 @@ function App() {
                 <Route path="brokers" element={<BrokersPage />} />
               </Route>
             </Routes>
-            <Toaster position="top-right" richColors theme="dark" />
+            <Toaster position="top-right" richColors theme="light" />
           </ModalProvider>
         </AuthProvider>
       </BrowserRouter>

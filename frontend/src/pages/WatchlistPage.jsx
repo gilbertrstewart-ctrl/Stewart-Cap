@@ -32,8 +32,8 @@ export default function WatchlistPage() {
       setData(data);
       toast.success(`Added ${s.symbol}`);
       setAddOpen(false);
-    } catch {
-      toast.error("Failed to add");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to add");
     }
   };
 
@@ -89,7 +89,7 @@ export default function WatchlistPage() {
                 key={q.symbol}
                 data-testid={`watch-row-${q.symbol}`}
                 onClick={() => openStockDetail(q.symbol)}
-                className="group cursor-pointer flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-[#1C2234] transition-colors"
+                className="group cursor-pointer flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-secondary transition-colors"
               >
                 <div className="w-32 sm:w-44 shrink-0">
                   <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export default function WatchlistPage() {
                 </div>
 
                 {q.near_high && (
-                  <span data-testid={`watch-nearhigh-${q.symbol}`} className="hidden lg:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 shrink-0">
+                  <span data-testid={`watch-nearhigh-${q.symbol}`} className="hidden lg:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-blue-600/15 text-blue-700 shrink-0">
                     <Bell className="w-3 h-3" /> {q.at_high ? "At 52W high" : `${q.pct_from_high}% from high`}
                   </span>
                 )}
@@ -125,12 +125,12 @@ export default function WatchlistPage() {
                   data-testid={`watch-analyze-${q.symbol}`}
                   onClick={(e) => { e.stopPropagation(); openAiAnalysis(q.symbol); }}
                   title="AI cause analysis"
-                  className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 rounded-md px-2.5 py-1.5 transition-colors"
+                  className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-red-600 hover:bg-red-600/10 rounded-md px-2.5 py-1.5 transition-colors"
                 >
                   <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">AI</span>
                 </button>
 
-                <button data-testid={`watch-remove-${q.symbol}`} onClick={(e) => remove(q.symbol, e)} className="shrink-0 text-muted-foreground hover:text-rose-400 p-1">
+                <button data-testid={`watch-remove-${q.symbol}`} onClick={(e) => remove(q.symbol, e)} className="shrink-0 text-muted-foreground hover:text-red-600 p-1">
                   <X className="w-4 h-4" />
                 </button>
               </div>

@@ -123,7 +123,7 @@ export default function StockDetailModal({ symbol, onClose }) {
                     <XAxis dataKey="t" hide />
                     <YAxis domain={["dataMin", "dataMax"]} hide />
                     <Tooltip
-                      contentStyle={{ background: "#151926", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                      contentStyle={{ background: "#FFFFFF", border: "1px solid #BFD7F5", color: "#0B1F4D", borderRadius: 8, fontSize: 12 }}
                       labelFormatter={() => ""}
                       formatter={(v) => [`$${fmtPrice(v)}`, "Price"]}
                     />
@@ -145,13 +145,13 @@ export default function StockDetailModal({ symbol, onClose }) {
             </div>
 
             {quote.near_high && (
-              <div data-testid="detail-nearhigh-alert" className="flex items-center gap-2 rounded-lg bg-emerald-500/10 text-emerald-400 px-3 py-2 text-sm">
+              <div data-testid="detail-nearhigh-alert" className="flex items-center gap-2 rounded-lg bg-blue-600/10 text-blue-700 px-3 py-2 text-sm">
                 <Bell className="w-4 h-4" />
                 {quote.at_high ? "Trading at its 52-week high" : `Only ${quote.pct_from_high}% below its 52-week high`}
               </div>
             )}
             {quote.near_low && (
-              <div data-testid="detail-nearlow-alert" className="flex items-center gap-2 rounded-lg bg-rose-500/10 text-rose-400 px-3 py-2 text-sm">
+              <div data-testid="detail-nearlow-alert" className="flex items-center gap-2 rounded-lg bg-red-600/10 text-red-600 px-3 py-2 text-sm">
                 <Bell className="w-4 h-4" />
                 {`Only ${quote.pct_from_low}% above its 52-week low`}
               </div>
@@ -199,7 +199,7 @@ export default function StockDetailModal({ symbol, onClose }) {
             )}
 
             <Button
-              className="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-black"
+              className="w-full mt-2 bg-red-600 hover:bg-red-700 text-white"
               data-testid="detail-analyze-btn"
               onClick={() => {
                 onClose();
