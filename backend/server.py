@@ -16,6 +16,7 @@ import auth
 import market_data
 import ai_analysis
 import user_data
+import alerts
 
 app = FastAPI(title="ApexTicker API")
 
@@ -32,6 +33,7 @@ app.include_router(auth.router)
 app.include_router(market_data.router)
 app.include_router(ai_analysis.router)
 app.include_router(user_data.router)
+app.include_router(alerts.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,6 +57,7 @@ async def startup():
     except Exception:
         pass
     asyncio.create_task(market_data._refresher())
+    asyncio.create_task(alerts.alerts_worker())
     logger.info("STEWART CAP backend ready")
 
 

@@ -181,3 +181,62 @@ def build_analysis_email(name: str, result: dict) -> str:
     )
     body = intro + meta + summary + catalysts_block + takeaways_block + disclaimer
     return _SHELL.format(body=body)
+
+
+def _pct(n) -> str:
+    v = float(n or 0)
+    color = "#16a34a" if v >= 0 else "#dc2626"
+    return f"<span style='color:{color};font-weight:bold'>{'+' if v >= 0 else ''}{v:.2f}%</span>"
+
+
+def _row(q: dict, extra: str = "") -> str:
+    return (
+        "<tr>"
+        f"<td style='padding:6px 0;border-bottom:1px solid #263041'><strong>{escape(q['symbol'])}</strong>"
+        f"<span style='color:#94a3b8;font-size:12px'> &middot; {escape(str(q.get('name', '')))}</span></td>"
+        f"<td style='padding:6px 0;border-bottom:1px solid #263041;text-align:right'>${q['price']:,.2f}</td>"
+        f"<td style='padding:6px 0;border-bottom:1px solid #263041;text-align:right'>{_pct(q['change_percent'])}{extra}</td>"
+        "</tr>"
+    )
+
+
+def _table(title: str, rows: str) -> str:
+    if not rows:
+        return ""
+    return (
+        f"<p style='margin:18px 0 6px;font-weight:bold'>{title}</p>"
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='font-size:14px'>" + rows + "</table>"
+    )
+
+
+async def send_price_alert_email(*, to: str, name: str, alert: dict, q: dict) -> str | None:
+    word = "rose above" if alert["direction"] == "above" else "fell below"
+    body = (
+        f"<p style='margin:0 0 14px'>Hi {escape(name or 'there')},</p>"
+        f"<p style='margin:0 0 14px'><strong>{escape(alert['symbol'])}</strong> ({escape(str(q.get('name', '')))}) just "
+        f"<strong>{word} your target of ${alert['target']:,.2f}</strong>.</p>"
+        f"<p style='margin:0 0 14px;font-size:22px'>Now: <strong>${q['price']:,.2f}</strong> &nbsp;{_pct(q['change_percent'])} today</p>"
+        f"<p style='margin:0;color:#94a3b8;font-size:12px'>52-week range ${q['low_52']:,.2f} &ndash; ${q['high_52']:,.2f}. "
+        "This alert has now been fired and will not repeat.</p>"
+    )
+    return await send_email(to=to, subject=f"{alert['symbol']} {word} ${alert['target']:,.2f}", html=_SHELL.format(body=body))
+
+
+async def send_digest_email(*, to: str, name: str, digest: dict) -> str | None:
+    watch_rows = "".join(_row(q) for q in digest["watchlist"])
+    high_rows = "".join(_row(q, f"<br><span style='font-size:11px;color:#94a3b8'>{q['pct_from_high']}% from 52W high</span>") for q in digest["near_high"])
+    low_rows = "".join(_row(q, f"<br><span style='font-size:11px;color:#94a3b8'>{q['pct_from_low']}% above 52W low</span>") for q in digest["near_low"])
+    big_rows = "".join(_row(q) for q in digest["big_movers"])
+    intro = (
+        f"<p style='margin:0 0 6px'>Good morning {escape(name or 'there')},</p>"
+        "<p style='margin:0 0 6px;color:#94a3b8;font-size:13px'>Here is your STEWART CAP daily digest.</p>"
+    )
+    empty = "<p style='margin:14px 0'>Your watchlist is empty. Add a few US or TSX tickers to get a personalised digest.</p>"
+    body = (
+        intro
+        + (_table("Your watchlist", watch_rows) or empty)
+        + _table("Near 52-week high (within 10%)", high_rows)
+        + _table("Near 52-week low (within 10%)", low_rows)
+        + _table("Market-wide dramatic movers (&plusmn;10%+)", big_rows)
+    )
+    return await send_email(to=to, subject="Your STEWART CAP morning digest", html=_SHELL.format(body=body))

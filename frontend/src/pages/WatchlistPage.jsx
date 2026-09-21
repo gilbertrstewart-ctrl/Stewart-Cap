@@ -1,25 +1,43 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useModals } from "@/context/ModalContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SymbolSearch from "@/components/SymbolSearch";
-import { Plus, X, Star, Loader2, Sparkles, Bell } from "lucide-react";
+import PriceAlertDialog from "@/components/PriceAlertDialog";
+import DigestCard from "@/components/DigestCard";
+import { Plus, X, Star, Loader2, Sparkles, Bell, BellRing, ArrowUpDown } from "lucide-react";
 import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
 import { toast } from "sonner";
+
+const SORTS = {
+  change_desc: { label: "% change · top gainers", fn: (a, b) => b.change_percent - a.change_percent },
+  change_asc: { label: "% change · top losers", fn: (a, b) => a.change_percent - b.change_percent },
+  near_high: { label: "Closest to 52W high", fn: (a, b) => (a.pct_from_high ?? 999) - (b.pct_from_high ?? 999) },
+  name_asc: { label: "Name A → Z", fn: (a, b) => a.name.localeCompare(b.name) },
+  symbol_asc: { label: "Symbol A → Z", fn: (a, b) => a.symbol.localeCompare(b.symbol) },
+  added: { label: "Order added", fn: null },
+};
 
 export default function WatchlistPage() {
   const { user, openAuth } = useAuth();
   const { openStockDetail, openAiAnalysis } = useModals();
   const [data, setData] = useState(null);
+  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [alertQuote, setAlertQuote] = useState(null);
+  const [sort, setSort] = useState(() => localStorage.getItem("watch_sort") || "added");
+
+  useEffect(() => localStorage.setItem("watch_sort", sort), [sort]);
 
   const load = () => {
     setLoading(true);
     api.get("/watchlist").then((r) => setData(r.data)).catch(() => {}).finally(() => setLoading(false));
+    api.get("/alerts").then((r) => setAlerts(r.data.alerts)).catch(() => {});
   };
 
   useEffect(() => {
@@ -47,6 +65,18 @@ export default function WatchlistPage() {
     }
   };
 
+  const quotes = useMemo(() => {
+    const list = [...(data?.quotes || [])];
+    const fn = SORTS[sort]?.fn;
+    return fn ? list.sort(fn) : list;
+  }, [data, sort]);
+
+  const activeAlerts = useMemo(() => {
+    const m = {};
+    alerts.forEach((a) => { if (!a.triggered_at) m[a.symbol] = (m[a.symbol] || 0) + 1; });
+    return m;
+  }, [alerts]);
+
   if (!user)
     return (
       <SignInPrompt
@@ -57,8 +87,6 @@ export default function WatchlistPage() {
       />
     );
 
-  const quotes = data?.quotes || [];
-
   return (
     <div data-testid="stock-watchlist-section" className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -66,10 +94,25 @@ export default function WatchlistPage() {
           <h1 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight">Watchlist</h1>
           <p className="text-muted-foreground mt-1">Live quotes for the stocks you follow.</p>
         </div>
-        <Button onClick={() => setAddOpen(true)} data-testid="add-watchlist-btn">
-          <Plus className="w-4 h-4 mr-2" /> Add stock
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={sort} onValueChange={setSort}>
+            <SelectTrigger className="w-[210px]" data-testid="watchlist-sort-select">
+              <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(SORTS).map(([k, v]) => (
+                <SelectItem key={k} value={k} data-testid={`watchlist-sort-${k}`}>{v.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setAddOpen(true)} data-testid="add-watchlist-btn">
+            <Plus className="w-4 h-4 mr-2" /> Add stock
+          </Button>
+        </div>
       </div>
+
+      <DigestCard />
 
       {loading && !data ? (
         <div className="h-64 grid place-items-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
@@ -84,6 +127,7 @@ export default function WatchlistPage() {
         <div data-testid="watchlist-list" className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
           {quotes.map((q) => {
             const pos = ((q.price - q.low_52) / (q.high_52 - q.low_52)) * 100;
+            const nAlerts = activeAlerts[q.symbol] || 0;
             return (
               <div
                 key={q.symbol}
@@ -122,6 +166,22 @@ export default function WatchlistPage() {
                 </div>
 
                 <button
+                  data-testid={`watch-alert-${q.symbol}`}
+                  onClick={(e) => { e.stopPropagation(); setAlertQuote(q); }}
+                  title="Price alert"
+                  className={`shrink-0 relative flex items-center gap-1.5 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors ${
+                    nAlerts ? "text-red-600 hover:bg-red-600/10" : "text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {nAlerts ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                  {nAlerts > 0 && (
+                    <span data-testid={`watch-alert-count-${q.symbol}`} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[10px] font-num grid place-items-center">
+                      {nAlerts}
+                    </span>
+                  )}
+                </button>
+
+                <button
                   data-testid={`watch-analyze-${q.symbol}`}
                   onClick={(e) => { e.stopPropagation(); openAiAnalysis(q.symbol); }}
                   title="AI cause analysis"
@@ -147,6 +207,8 @@ export default function WatchlistPage() {
           <SymbolSearch onSelect={add} />
         </DialogContent>
       </Dialog>
+
+      <PriceAlertDialog quote={alertQuote} onClose={() => setAlertQuote(null)} onChanged={setAlerts} />
     </div>
   );
 }
