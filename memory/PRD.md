@@ -51,3 +51,4 @@ Build an app to track investments, a stock watchlist, stocks reaching 52-week hi
 - FIXED: Watchlist search now finds ANY US/TSX equity/ETF via Yahoo search (dynamic symbol registry persisted in Mongo `symbols`, reloaded at startup). Enter key adds the typed ticker; unknown tickers show a clear error. Portfolio add also accepts any ticker.
 - THEME: Red/white/blue palette, light-blue background is now the default; gains blue, losses red; navy ticker tape with red LIVE badge. Dark mode still available via toggle (key `stewart_theme`).
 - Tested: /app/test_reports/iteration_4.json — 24/24 backend, frontend E2E pass.
+- Ticker tape: black bg, white symbols, green up / red down (user request).

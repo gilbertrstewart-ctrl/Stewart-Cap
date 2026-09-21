@@ -28,7 +28,7 @@ export default function TickerTape() {
   return (
     <div
       data-testid="running-stock-ticker-tape"
-      className="fixed top-0 left-0 w-full z-50 h-9 bg-[#0B2A6F] border-b border-white/10 overflow-hidden flex items-center"
+      className="fixed top-0 left-0 w-full z-50 h-9 bg-black border-b border-white/10 overflow-hidden flex items-center"
     >
       <div className="flex-shrink-0 h-full px-3 flex items-center gap-1.5 bg-red-600 text-white font-heading font-bold text-[11px] uppercase tracking-wider z-10">
         <span className="w-1.5 h-1.5 rounded-full bg-white live-dot" /> Live
@@ -42,7 +42,7 @@ export default function TickerTape() {
             className="inline-flex items-center gap-2 px-4 text-xs font-num hover:bg-white/5 h-9 transition-colors"
           >
             <span className="text-white font-semibold">{q.symbol}</span>
-            <span className="text-blue-200">{fmtPrice(q.price)}</span>
+            <span className="text-white/70">{fmtPrice(q.price)}</span>
             <span className={tapeTrendColor(q.change_percent)}>{fmtPct(q.change_percent)}</span>
           </button>
         ))}
