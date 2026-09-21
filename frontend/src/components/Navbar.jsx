@@ -49,7 +49,7 @@ export default function Navbar() {
               <Activity className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
             </div>
             <div className="leading-none">
-              <div className="font-heading font-extrabold text-lg tracking-tight">ApexTicker</div>
+              <div className="font-heading font-extrabold text-lg tracking-tight">STEWART CAP</div>
               <div className="text-[10px] font-num uppercase tracking-widest text-muted-foreground">US · TSX</div>
             </div>
           </NavLink>

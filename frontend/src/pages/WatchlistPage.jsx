@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useModals } from "@/context/ModalContext";
-import StockCard from "@/components/StockCard";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SymbolSearch from "@/components/SymbolSearch";
-import { Plus, X, Star, Loader2, Sparkles } from "lucide-react";
-import { fmtPrice } from "@/utils/format";
+import { Plus, X, Star, Loader2, Sparkles, Bell } from "lucide-react";
+import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
 import { toast } from "sonner";
 
 export default function WatchlistPage() {
@@ -81,40 +81,59 @@ export default function WatchlistPage() {
           <Button onClick={() => setAddOpen(true)} data-testid="empty-add-watchlist-btn"><Plus className="w-4 h-4 mr-2" /> Add stock</Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div data-testid="watchlist-list" className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
           {quotes.map((q) => {
             const pos = ((q.price - q.low_52) / (q.high_52 - q.low_52)) * 100;
             return (
-              <StockCard
+              <div
                 key={q.symbol}
-                quote={q}
-                testid={`watch-card-${q.symbol}`}
-                onOpen={() => openStockDetail(q.symbol)}
-                right={
-                  <button data-testid={`watch-remove-${q.symbol}`} onClick={(e) => remove(q.symbol, e)} className="text-muted-foreground hover:text-rose-400 p-1">
-                    <X className="w-4 h-4" />
-                  </button>
-                }
-                footer={
-                  <div className="mt-3 space-y-2">
-                    <div className="flex justify-between text-[10px] font-num text-muted-foreground">
-                      <span>{fmtPrice(q.low_52)}</span>
-                      <span className="uppercase tracking-wider">52W range</span>
-                      <span>{fmtPrice(q.high_52)}</span>
-                    </div>
-                    <div className="relative h-1.5 rounded-full bg-secondary">
-                      <div className="absolute -top-1 w-3 h-3.5 rounded-full bg-primary" style={{ left: `calc(${Math.min(100, Math.max(0, pos))}% - 6px)` }} />
-                    </div>
-                    <button
-                      data-testid={`watch-analyze-${q.symbol}`}
-                      onClick={(e) => { e.stopPropagation(); openAiAnalysis(q.symbol); }}
-                      className="w-full mt-1 flex items-center justify-center gap-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 rounded-md py-1.5 transition-colors"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" /> AI analysis
-                    </button>
+                data-testid={`watch-row-${q.symbol}`}
+                onClick={() => openStockDetail(q.symbol)}
+                className="group cursor-pointer flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-[#1C2234] transition-colors"
+              >
+                <div className="w-32 sm:w-44 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-heading font-bold">{q.symbol}</span>
+                    <Badge variant="secondary" className="text-[9px] font-num">{q.exchange}</Badge>
                   </div>
-                }
-              />
+                  <div className="text-xs text-muted-foreground truncate">{q.name}</div>
+                </div>
+
+                <div className="hidden md:block flex-1 min-w-0">
+                  <div className="flex justify-between text-[10px] font-num text-muted-foreground mb-1">
+                    <span>{fmtPrice(q.low_52)}</span>
+                    <span className="uppercase tracking-wider">52W range</span>
+                    <span>{fmtPrice(q.high_52)}</span>
+                  </div>
+                  <div className="relative h-1.5 rounded-full bg-secondary">
+                    <div className="absolute -top-1 w-3 h-3.5 rounded-full bg-primary" style={{ left: `calc(${Math.min(100, Math.max(0, pos))}% - 6px)` }} />
+                  </div>
+                </div>
+
+                {q.near_high && (
+                  <span data-testid={`watch-nearhigh-${q.symbol}`} className="hidden lg:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-400 shrink-0">
+                    <Bell className="w-3 h-3" /> {q.at_high ? "At 52W high" : `${q.pct_from_high}% from high`}
+                  </span>
+                )}
+
+                <div className="w-24 sm:w-28 text-right shrink-0">
+                  <div className="font-num text-lg font-bold">{fmtPrice(q.price)}</div>
+                  <div className={`font-num text-xs ${trendColor(q.change_percent)}`}>{fmtPct(q.change_percent)}</div>
+                </div>
+
+                <button
+                  data-testid={`watch-analyze-${q.symbol}`}
+                  onClick={(e) => { e.stopPropagation(); openAiAnalysis(q.symbol); }}
+                  title="AI cause analysis"
+                  className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 rounded-md px-2.5 py-1.5 transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">AI</span>
+                </button>
+
+                <button data-testid={`watch-remove-${q.symbol}`} onClick={(e) => remove(q.symbol, e)} className="shrink-0 text-muted-foreground hover:text-rose-400 p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             );
           })}
         </div>

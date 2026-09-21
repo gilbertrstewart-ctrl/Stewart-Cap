@@ -42,7 +42,7 @@ export default function AuthModal() {
             <Activity className="w-6 h-6 text-primary-foreground" strokeWidth={2.5} />
           </div>
           <DialogTitle className="font-heading text-2xl">
-            {isLogin ? "Sign in to ApexTicker" : "Create your account"}
+            {isLogin ? "Sign in to STEWART CAP" : "Create your account"}
           </DialogTitle>
           <DialogDescription>
             {isLogin ? "Access your portfolio and watchlist." : "Track holdings, watch stocks, and get AI insights."}

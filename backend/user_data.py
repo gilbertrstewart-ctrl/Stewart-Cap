@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from db import db
 from auth import get_current_user
-from market_data import quote, UNIVERSE
+from market_data import quote, UNIVERSE, ensure_fresh
 
 router = APIRouter(prefix="/api", tags=["user-data"])
 
@@ -18,6 +18,7 @@ class WatchInput(BaseModel):
 
 @router.get("/watchlist")
 async def get_watchlist(user: dict = Depends(get_current_user)):
+    await ensure_fresh()
     doc = await db.watchlists.find_one({"user_id": user["id"]})
     symbols = doc["symbols"] if doc else []
     quotes = []
@@ -54,6 +55,7 @@ class HoldingInput(BaseModel):
 
 @router.get("/portfolio")
 async def get_portfolio(user: dict = Depends(get_current_user)):
+    await ensure_fresh()
     holdings = await db.holdings.find({"user_id": user["id"]}).to_list(500)
     items = []
     total_value = total_cost = day_change = 0.0

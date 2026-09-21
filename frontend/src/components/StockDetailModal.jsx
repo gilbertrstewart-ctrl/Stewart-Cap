@@ -4,7 +4,7 @@ import { useModals } from "@/context/ModalContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { Sparkles, Loader2, TrendingUp, TrendingDown, Bell } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { fmtPrice, fmtPct, fmtMarketCap, fmtVolume, trendColor, trendHex } from "@/utils/format";
 
@@ -20,7 +20,14 @@ export default function StockDetailModal({ symbol, onClose }) {
   useEffect(() => {
     if (!symbol) return;
     setQuote(null);
-    api.get(`/market/quote/${symbol}`).then((r) => setQuote(r.data)).catch(() => {});
+    let active = true;
+    const load = () => api.get(`/market/quote/${symbol}`).then((r) => active && setQuote(r.data)).catch(() => {});
+    load();
+    const id = setInterval(load, 15000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
   }, [symbol]);
 
   useEffect(() => {
@@ -38,7 +45,7 @@ export default function StockDetailModal({ symbol, onClose }) {
 
   return (
     <Dialog open={!!symbol} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="stock-detail-modal">
+      <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto" data-testid="stock-detail-modal">
         {!quote ? (
           <div className="h-72 grid place-items-center">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -60,6 +67,10 @@ export default function StockDetailModal({ symbol, onClose }) {
                     {up ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                     {fmtPrice(quote.change)} ({fmtPct(quote.change_percent)})
                   </div>
+                  <div className="text-[10px] font-num text-muted-foreground mt-1">
+                    {quote.source === "live" ? "● Live" : "Simulated"}
+                    {quote.as_of ? ` · ${new Date(quote.as_of).toLocaleString()}` : ""}
+                  </div>
                 </div>
               </div>
             </DialogHeader>
@@ -79,7 +90,7 @@ export default function StockDetailModal({ symbol, onClose }) {
               ))}
             </div>
 
-            <div className="h-56 -mx-2">
+            <div className="h-72 sm:h-80 -mx-2">
               {loading ? (
                 <div className="h-full grid place-items-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
               ) : (
@@ -115,6 +126,18 @@ export default function StockDetailModal({ symbol, onClose }) {
               </div>
             </div>
 
+            {quote.near_high && (
+              <div data-testid="detail-nearhigh-alert" className="flex items-center gap-2 rounded-lg bg-emerald-500/10 text-emerald-400 px-3 py-2 text-sm">
+                <Bell className="w-4 h-4" />
+                {quote.at_high ? "Trading at its 52-week high" : `Only ${quote.pct_from_high}% below its 52-week high`}
+              </div>
+            )}
+            {quote.near_low && (
+              <div data-testid="detail-nearlow-alert" className="flex items-center gap-2 rounded-lg bg-rose-500/10 text-rose-400 px-3 py-2 text-sm">
+                <Bell className="w-4 h-4" />
+                {`Only ${quote.pct_from_low}% above its 52-week low`}
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
               {[
                 ["P/E", quote.pe || "—"],

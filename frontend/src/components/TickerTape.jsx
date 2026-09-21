@@ -15,7 +15,7 @@ export default function TickerTape() {
         .then((r) => active && setQuotes(r.data.quotes))
         .catch(() => {});
     load();
-    const id = setInterval(load, 20000);
+    const id = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(id);

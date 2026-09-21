@@ -15,7 +15,7 @@ export default function Layout() {
       <AuthModal />
       <footer className="border-t border-border mt-16">
         <div className="max-w-[1500px] mx-auto px-6 py-6 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span className="font-num">ApexTicker · Market data via Alpha Vantage · AI insights by Claude</span>
+          <span className="font-num">STEWART CAP · Live data via Yahoo Finance · AI insights by Claude</span>
           <span>Informational only — not financial advice.</span>
         </div>
       </footer>

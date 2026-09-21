@@ -1,4 +1,5 @@
 import os
+import asyncio
 import math
 import random
 import time
@@ -54,25 +55,77 @@ for sym, name, sector, exch, price, chg, hi, lo, pe, mcap, vol, div in _UNIVERSE
     }
 
 
-def _jitter(symbol: str) -> float:
-    """Small intraday jitter (~+-0.4%) that changes every ~20s for a live feel."""
-    bucket = int(time.time() // 20)
-    rng = random.Random(f"{symbol}-{bucket}")
-    return rng.uniform(-0.004, 0.004)
+YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/"
+LIVE_TTL = 60  # seconds between live refreshes
+
+_LIVE = {}
+_last_refresh = 0.0
+
+for _sym, _s in UNIVERSE.items():
+    _LIVE[_sym] = {
+        "price": _s["base_price"], "prev_close": _s["prev_close"],
+        "high_52": _s["high_52"], "low_52": _s["low_52"],
+        "source": "simulated", "as_of": None,
+    }
+
+
+async def _fetch_yahoo(sym: str):
+    try:
+        async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
+            r = await client.get(f"{YAHOO}{sym}", params={"interval": "1d", "range": "1d"})
+        m = r.json()["chart"]["result"][0]["meta"]
+        price = m.get("regularMarketPrice")
+        prev = m.get("chartPreviousClose") or m.get("previousClose")
+        if price is None or not prev:
+            return None
+        return {
+            "price": round(float(price), 2),
+            "prev_close": round(float(prev), 2),
+            "high_52": round(float(m.get("fiftyTwoWeekHigh") or UNIVERSE[sym]["high_52"]), 2),
+            "low_52": round(float(m.get("fiftyTwoWeekLow") or UNIVERSE[sym]["low_52"]), 2),
+            "source": "live", "as_of": m.get("regularMarketTime"),
+        }
+    except Exception:
+        return None
+
+
+async def ensure_fresh(force: bool = False):
+    """Refresh live prices from Yahoo Finance at most once per LIVE_TTL seconds."""
+    global _last_refresh
+    now = time.time()
+    if not force and now - _last_refresh < LIVE_TTL:
+        return
+    _last_refresh = now
+    results = await asyncio.gather(*[_fetch_yahoo(s) for s in UNIVERSE], return_exceptions=True)
+    for sym, res in zip(UNIVERSE.keys(), results):
+        if isinstance(res, dict):
+            _LIVE[sym] = res
 
 
 def quote(symbol: str) -> dict:
     s = UNIVERSE.get(symbol)
     if not s:
         raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
-    price = round(s["base_price"] * (1 + _jitter(symbol)), 2)
-    change = round(price - s["prev_close"], 2)
-    change_pct = round((price - s["prev_close"]) / s["prev_close"] * 100, 2)
+    live = _LIVE[symbol]
+    price, prev = live["price"], live["prev_close"]
+    high, low = live["high_52"], live["low_52"]
+    change = round(price - prev, 2)
+    change_pct = round((price - prev) / prev * 100, 2) if prev else 0
+    pct_from_high = round((high - price) / high * 100, 2) if high else None
+    pct_from_low = round((price - low) / low * 100, 2) if low else None
+    as_of = None
+    if live.get("as_of"):
+        as_of = datetime.fromtimestamp(live["as_of"], tz=timezone.utc).isoformat()
     return {
         "symbol": s["symbol"], "name": s["name"], "sector": s["sector"], "exchange": s["exchange"],
-        "price": price, "prev_close": s["prev_close"], "change": change, "change_percent": change_pct,
-        "high_52": s["high_52"], "low_52": s["low_52"], "pe": s["pe"], "market_cap": s["market_cap"],
+        "price": price, "prev_close": prev, "change": change, "change_percent": change_pct,
+        "high_52": high, "low_52": low, "pe": s["pe"], "market_cap": s["market_cap"],
         "volume": s["volume"], "dividend_yield": s["dividend_yield"],
+        "pct_from_high": pct_from_high, "pct_from_low": pct_from_low,
+        "near_high": pct_from_high is not None and 0 <= pct_from_high <= 10,
+        "at_high": pct_from_high is not None and pct_from_high <= 1.5,
+        "near_low": pct_from_low is not None and 0 <= pct_from_low <= 10,
+        "source": live["source"], "as_of": as_of,
     }
 
 
@@ -84,32 +137,31 @@ def movers() -> dict:
     quotes = all_quotes()
     near_high, near_low, big = [], [], []
     for q in quotes:
-        if q["price"] >= q["high_52"] * 0.985:
-            near_high.append({**q, "pct_from_52w_high": round((q["price"] - q["high_52"]) / q["high_52"] * 100, 2)})
-        if q["price"] <= q["low_52"] * 1.02:
-            near_low.append({**q, "pct_from_52w_low": round((q["price"] - q["low_52"]) / q["low_52"] * 100, 2)})
+        if q["pct_from_high"] is not None and 0 <= q["pct_from_high"] <= 10:
+            near_high.append(q)
+        if q["pct_from_low"] is not None and 0 <= q["pct_from_low"] <= 10:
+            near_low.append(q)
         if abs(q["change_percent"]) >= 10:
             big.append({**q, "direction": "up" if q["change_percent"] > 0 else "down"})
-    near_high.sort(key=lambda x: x["change_percent"], reverse=True)
-    near_low.sort(key=lambda x: x["change_percent"])
+    near_high.sort(key=lambda x: x["pct_from_high"])
+    near_low.sort(key=lambda x: x["pct_from_low"])
     big.sort(key=lambda x: abs(x["change_percent"]), reverse=True)
-    return {"high_52w": near_high, "low_52w": near_low, "big_movers": big}
+    return {
+        "near_high": near_high, "near_low": near_low, "big_movers": big,
+        "high_52w": [q for q in near_high if q["at_high"]],
+        "low_52w": [q for q in near_low if q["pct_from_low"] <= 2],
+    }
 
 
-def history(symbol: str, rng: str = "1M") -> list:
-    if symbol not in UNIVERSE:
-        raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
-    points_map = {"1D": 26, "1W": 35, "1M": 30, "3M": 66, "1Y": 52, "5Y": 60}
-    n = points_map.get(rng, 30)
-    s = UNIVERSE[symbol]
-    end_price = s["base_price"]
+def _sim_history(symbol: str, rng: str = "1M") -> list:
+    n_map = {"1D": 26, "1W": 35, "1M": 30, "3M": 66, "1Y": 52, "5Y": 60}
+    n = n_map.get(rng, 30)
+    end_price = _LIVE[symbol]["price"]
     seed_rng = random.Random(f"{symbol}-{rng}-hist")
-    # random walk backwards from current price
     vol = {"1D": 0.004, "1W": 0.01, "1M": 0.02, "3M": 0.03, "1Y": 0.05, "5Y": 0.08}.get(rng, 0.02)
     prices = [end_price]
     for _ in range(n - 1):
-        step = 1 + seed_rng.uniform(-vol, vol)
-        prices.append(prices[-1] / step)
+        prices.append(prices[-1] / (1 + seed_rng.uniform(-vol, vol)))
     prices = list(reversed(prices))
     now = datetime.now(timezone.utc)
     step_map = {
@@ -117,78 +169,79 @@ def history(symbol: str, rng: str = "1M") -> list:
         "3M": timedelta(days=3), "1Y": timedelta(weeks=1), "5Y": timedelta(days=30),
     }
     delta = step_map.get(rng, timedelta(days=1))
-    out = []
-    for i, p in enumerate(prices):
-        ts = now - delta * (len(prices) - 1 - i)
-        out.append({"t": ts.isoformat(), "price": round(p, 2)})
-    return out
+    return [{"t": (now - delta * (len(prices) - 1 - i)).isoformat(), "price": round(p, 2)} for i, p in enumerate(prices)]
 
 
-async def try_alpha_quote(symbol: str) -> dict | None:
-    """Best-effort real quote from Alpha Vantage, cached in Mongo. Returns None on failure/limit."""
-    if not ALPHA_KEY:
-        return None
-    cached = await db.av_cache.find_one({"_id": f"q:{symbol}"})
-    if cached and cached.get("expires", 0) > time.time():
-        return cached["data"]
+_YRANGE = {
+    "1D": ("1d", "5m"), "1W": ("5d", "30m"), "1M": ("1mo", "1d"),
+    "3M": ("3mo", "1d"), "1Y": ("1y", "1wk"), "5Y": ("5y", "1mo"),
+}
+
+
+async def history(symbol: str, rng: str = "1M") -> list:
+    if symbol not in UNIVERSE:
+        raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
+    yr, yi = _YRANGE.get(rng, ("1mo", "1d"))
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(AV_BASE, params={"function": "GLOBAL_QUOTE", "symbol": symbol, "apikey": ALPHA_KEY})
-        data = r.json()
-        gq = data.get("Global Quote") or {}
-        if not gq or "05. price" not in gq:
-            return None
-        result = {
-            "symbol": symbol,
-            "price": float(gq["05. price"]),
-            "change": float(gq.get("09. change", 0) or 0),
-            "change_percent": float((gq.get("10. change percent", "0%") or "0%").replace("%", "")),
-            "source": "alpha_vantage",
-        }
-        await db.av_cache.update_one(
-            {"_id": f"q:{symbol}"},
-            {"$set": {"data": result, "expires": time.time() + 3600}},
-            upsert=True,
-        )
-        return result
+        async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
+            r = await client.get(f"{YAHOO}{symbol}", params={"interval": yi, "range": yr})
+        res = r.json()["chart"]["result"][0]
+        ts = res["timestamp"]
+        closes = res["indicators"]["quote"][0]["close"]
+        out = []
+        for t, c in zip(ts, closes):
+            if c is None:
+                continue
+            out.append({"t": datetime.fromtimestamp(t, tz=timezone.utc).isoformat(), "price": round(float(c), 2)})
+        if len(out) >= 2:
+            return out
     except Exception:
-        return None
+        pass
+    return _sim_history(symbol, rng)
+
+
+async def _refresher():
+    """Keep live prices warm in the background so requests never block on Yahoo."""
+    while True:
+        try:
+            await ensure_fresh(force=True)
+        except Exception:
+            pass
+        await asyncio.sleep(45)
 
 
 @router.get("/ticker")
 async def ticker():
+    await ensure_fresh()
     return {"quotes": all_quotes(), "updated_at": datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/universe")
 async def universe():
+    await ensure_fresh()
     return {"quotes": all_quotes()}
 
 
 @router.get("/movers")
 async def get_movers():
+    await ensure_fresh()
     return movers()
 
 
 @router.get("/quote/{symbol}")
 async def get_quote(symbol: str):
-    q = quote(symbol)
-    live = await try_alpha_quote(symbol)
-    if live:
-        q["live_price"] = live["price"]
-        q["source"] = "alpha_vantage"
-    else:
-        q["source"] = "simulated"
-    return q
+    await ensure_fresh()
+    return quote(symbol)
 
 
 @router.get("/history/{symbol}")
 async def get_history(symbol: str, range: str = "1M"):
-    return {"symbol": symbol, "range": range, "points": history(symbol, range)}
+    return {"symbol": symbol, "range": range, "points": await history(symbol, range)}
 
 
 @router.get("/search")
 async def search(q: str = ""):
+    await ensure_fresh()
     ql = q.lower().strip()
     if not ql:
         return {"results": all_quotes()[:12]}

@@ -4,7 +4,7 @@ import { useModals } from "@/context/ModalContext";
 import StockCard from "@/components/StockCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUp, ArrowDown, Flame, Sparkles, Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUp, ArrowDown, Flame, Sparkles, Loader2, TrendingUp, TrendingDown, Bell } from "lucide-react";
 import { fmtPct } from "@/utils/format";
 
 export default function MoversPage() {
@@ -35,17 +35,22 @@ export default function MoversPage() {
               <Badge variant="secondary" className="ml-2 text-[10px]">{data.big_movers.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="high" data-testid="tab-52w-high">
-              <ArrowUp className="w-4 h-4 mr-1.5" /> 52W High
-              <Badge variant="secondary" className="ml-2 text-[10px]">{data.high_52w.length}</Badge>
+              <ArrowUp className="w-4 h-4 mr-1.5" /> Near 52W High
+              <Badge variant="secondary" className="ml-2 text-[10px]">{data.near_high.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="low" data-testid="tab-52w-low">
-              <ArrowDown className="w-4 h-4 mr-1.5" /> 52W Low
-              <Badge variant="secondary" className="ml-2 text-[10px]">{data.low_52w.length}</Badge>
+              <ArrowDown className="w-4 h-4 mr-1.5" /> Near 52W Low
+              <Badge variant="secondary" className="ml-2 text-[10px]">{data.near_low.length}</Badge>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="big" className="mt-5">
             <p className="text-sm text-muted-foreground mb-4">Stocks that moved more than 10% today — tap <span className="text-amber-400">AI analysis</span> to understand the cause.</p>
+            {data.big_movers.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
+                No stocks are up or down more than 10% right now. This list fills up when the market gets volatile.
+              </div>
+            )}
             <Grid>
               {data.big_movers.map((q) => (
                 <StockCard
@@ -74,19 +79,27 @@ export default function MoversPage() {
           </TabsContent>
 
           <TabsContent value="high" className="mt-5">
+            <p className="text-sm text-muted-foreground mb-4">Alert: stocks trading within 10% of their 52-week high — potential breakouts to watch.</p>
             <Grid>
-              {data.high_52w.map((q) => (
+              {data.near_high.map((q) => (
                 <StockCard key={q.symbol} quote={q} testid={`high-mover-${q.symbol}`} onOpen={() => openStockDetail(q.symbol)}
-                  footer={<Footer label="From 52W high" value={fmtPct(q.pct_from_52w_high)} />} />
+                  right={
+                    <Badge className={`border-0 ${q.at_high ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-500/10 text-emerald-400"}`}>
+                      <Bell className="w-3 h-3 mr-1" /> {q.at_high ? "At high" : `${q.pct_from_high}%`}
+                    </Badge>
+                  }
+                  footer={<Footer label="Below 52W high" value={`${q.pct_from_high}%`} />} />
               ))}
             </Grid>
           </TabsContent>
 
           <TabsContent value="low" className="mt-5">
+            <p className="text-sm text-muted-foreground mb-4">Stocks trading within 10% of their 52-week low.</p>
             <Grid>
-              {data.low_52w.map((q) => (
+              {data.near_low.map((q) => (
                 <StockCard key={q.symbol} quote={q} testid={`low-mover-${q.symbol}`} onOpen={() => openStockDetail(q.symbol)}
-                  footer={<Footer label="From 52W low" value={fmtPct(q.pct_from_52w_low)} />} />
+                  right={<Badge className="border-0 bg-rose-500/10 text-rose-400"><ArrowDown className="w-3 h-3 mr-1" /> {q.pct_from_low}%</Badge>}
+                  footer={<Footer label="Above 52W low" value={`${q.pct_from_low}%`} />} />
               ))}
             </Grid>
           </TabsContent>

@@ -5,6 +5,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 import os
+import asyncio
 import logging
 
 from fastapi import FastAPI, APIRouter
@@ -48,7 +49,12 @@ logger = logging.getLogger(__name__)
 async def startup():
     await db.users.create_index("email", unique=True)
     await auth.seed_admin()
-    logger.info("ApexTicker backend ready")
+    try:
+        await asyncio.wait_for(market_data.ensure_fresh(force=True), timeout=15)
+    except Exception:
+        pass
+    asyncio.create_task(market_data._refresher())
+    logger.info("STEWART CAP backend ready")
 
 
 @app.on_event("shutdown")
