@@ -1,0 +1,113 @@
+{
+  "project_name": "ApexTicker - AI Financial Intelligence & Portfolio Dashboard",
+  "theme_architecture": {
+    "default_mode": "dark",
+    "supported_modes": ["dark", "light"],
+    "color_archetype": "THE PERFORMANCE PRO / TACTICAL FINANCIAL OBSIDIAN",
+    "color_palette": {
+      "bg_primary": "#08090E",
+      "bg_secondary": "#0F121C",
+      "bg_card": "#151926",
+      "bg_card_hover": "#1C2234",
+      "border": "rgba(255, 255, 255, 0.08)",
+      "border_accent": "rgba(59, 130, 246, 0.3)",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8",
+      "text_muted": "#64748B",
+      "bullish_green": "#10B981",
+      "bullish_green_bg": "rgba(16, 185, 129, 0.12)",
+      "bearish_red": "#F43F5E",
+      "bearish_red_bg": "rgba(244, 63, 94, 0.12)",
+      "ai_amber": "#F59E0B",
+      "ai_amber_bg": "rgba(245, 158, 11, 0.12)",
+      "accent_blue": "#3B82F6",
+      "accent_purple": "#8B5CF6"
+    }
+  },
+  "typography": {
+    "heading_font": "Outfit, sans-serif",
+    "body_font": "Plus Jakarta Sans, sans-serif",
+    "mono_numeric_font": "JetBrains Mono, monospace",
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "h2": "text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight",
+      "h3": "text-lg sm:text-xl font-semibold",
+      "h4": "text-base font-semibold",
+      "body": "text-sm sm:text-base font-normal leading-relaxed",
+      "caption": "text-xs font-mono uppercase tracking-wider text-muted-foreground"
+    }
+  },
+  "layout_and_spacing": {
+    "grid_strategy": "High Density Dashboard Grid (MODE B)",
+    "container_padding": "p-4 sm:p-6 lg:p-8",
+    "card_padding": "p-5 sm:p-6",
+    "gap": "gap-4 sm:gap-6",
+    "ticker_tape_position": "top",
+    "ticker_tape_style": "fixed top-0 left-0 w-full z-50 bg-[#08090E]/95 border-b border-white/10 backdrop-blur-md py-2 text-xs font-mono overflow-hidden whitespace-nowrap shadow-md"
+  },
+  "key_features_and_components": [
+    {
+      "name": "Live Stock Ticker Tape Banner",
+      "description": "Continuous horizontal marquee ticker across the top displaying US & TSX stocks (e.g., AAPL, NVDA, TSLA, SHOP.TO, TD.TO, RY.TO, MSFT, AMZN) with price, change %, and flashing green/red indicators.",
+      "data_testid": "running-stock-ticker-tape"
+    },
+    {
+      "name": "Header & Auth Navigation Bar",
+      "description": "Sticky navigation header containing Brand Logo, Active View Switcher (Portfolio, Watchlist, Movers, AI Analysis, Broker Gateway), Alpha Vantage API Status Indicator, Light/Dark Theme Switcher, User Profile & Email Auth Modal Trigger.",
+      "data_testid": "main-navbar"
+    },
+    {
+      "name": "Portfolio & Investment Tracker",
+      "description": "Displays total portfolio value, total unrealized gain/loss ($ and %), day's change, asset allocation breakdown chart (Recharts pie/donut), holdings data table with search, filter, sparkline mini-charts, and 'Add Holding' dialog.",
+      "data_testid": "portfolio-tracker-section"
+    },
+    {
+      "name": "Stock Watchlist",
+      "description": "Customizable list of watched US & TSX stocks with real-time price quotes, 52-week range sliders, volume stats, quick remove action, and quick analysis trigger.",
+      "data_testid": "stock-watchlist-section"
+    },
+    {
+      "name": "Market Movers Radar (52-Week High & Low + >10% Big Movers)",
+      "description": "Tabbed or grid card section showcasing: 1) Stocks at 52-Week High, 2) Stocks at 52-Week Low, 3) Big Movers (>10% extreme volatility). Includes AI Cause Analysis badges.",
+      "data_testid": "market-movers-section"
+    },
+    {
+      "name": "AI Cause Analysis Engine",
+      "description": "AI-powered analysis modal and card drawer explaining root causes for >10% spikes/drops (e.g., Earnings beat, FDA approval, SEC investigation, Macro interest rate shifts, Analyst upgrade/downgrade). Uses structured LLM synthesis.",
+      "data_testid": "ai-cause-analysis-card"
+    },
+    {
+      "name": "Broker & Financial Institution Gateway",
+      "description": "Direct launchpad with high-contrast link-out cards to major Canadian & US brokers/banks (Interactive Brokers, Wealthsimple, Questrade, Charles Schwab, Fidelity, TD WebBroker, RBC Direct Investing, E*TRADE). Includes quick fee & feature badges.",
+      "data_testid": "broker-gateway-section"
+    },
+    {
+      "name": "Stock Detail & Chart Modal/View",
+      "description": "Interactive detailed stock analysis drawer with Recharts candlestick/area price chart, timeframe toggle (1D, 1W, 1M, 1Y, 5Y), key financial ratios (P/E, Market Cap, 52W Range, Vol, Dividend), and company profile.",
+      "data_testid": "stock-detail-modal"
+    },
+    {
+      "name": "Email + Password Authentication",
+      "description": "Auth dialog & drawer supporting Login, Registration, and Session State management with user credentials, saved watchlists, and persistent portfolio storage.",
+      "data_testid": "auth-modal"
+    }
+  ],
+  "image_urls": {
+    "hero_chart_bg": "https://images.unsplash.com/photo-1648275913341-7973ae7bc9b3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHxfMTc4OTk0ODI3OXww&ixlib=rb-4.1.0&q=85",
+    "trading_terminal_bg": "https://images.pexels.com/photos/38412413/pexels-photo-38412413.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "stock_candlestick_detail": "https://images.pexels.com/photos/38975904/pexels-photo-38975904.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "mobile_trading_app": "https://images.pexels.com/photos/28682354/pexels-photo-28682354.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+  },
+  "instructions_to_main_agent": [
+    "Ensure the ticker tape banner runs continuously at the very top or bottom of the screen with explicit data-testid='running-stock-ticker-tape'. Support both US (AAPL, NVDA, TSLA, MSFT) and TSX (SHOP.TO, TD.TO, RY.TO, ENB.TO) symbols.",
+    "Implement real Alpha Vantage integration with graceful mock fallback when API limits or keys are exceeded, so the app remains 100% functional and interactive at all times.",
+    "Provide AI-powered Cause Analysis for Big Movers (>10% change). The modal/card must clearly outline Catalyst Summary, Market Sentiment Score, Key Metrics, and Analyst Takeaways.",
+    "Build the Financial Institution Gateway featuring launch cards for Interactive Brokers, Wealthsimple, Questrade, Schwab, Fidelity, TD, RBC, and BMO with external link icons and security tags.",
+    "Use strict typography mapping: Outfit for section titles, JetBrains Mono / IBM Plex Mono for financial values, stock symbols, percentage changes, and prices.",
+    "Ensure every interactive button, input, tab, card, and link contains explicit data-testid attributes for reliable end-to-end testing.",
+    "Support complete dark and light mode themes via smooth Tailwind CSS dark class toggling."
+  ]
+},
+overwrite: true,
+path: "/app/design_guidelines.json"
+}

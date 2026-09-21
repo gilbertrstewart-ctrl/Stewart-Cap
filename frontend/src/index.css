@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.font-heading { font-family: 'Outfit', sans-serif; }
+.font-num { font-family: 'JetBrains Mono', monospace; font-feature-settings: "tnum"; }
+
+@layer base {
+    :root {
+        --background: 210 40% 99%;
+        --foreground: 228 30% 8%;
+        --card: 0 0% 100%;
+        --card-foreground: 228 30% 8%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 228 30% 8%;
+        --primary: 217 91% 55%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 220 20% 94%;
+        --secondary-foreground: 228 30% 12%;
+        --muted: 220 20% 94%;
+        --muted-foreground: 220 12% 42%;
+        --accent: 220 20% 92%;
+        --accent-foreground: 228 30% 12%;
+        --destructive: 350 89% 55%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 220 18% 88%;
+        --input: 220 18% 88%;
+        --ring: 217 91% 55%;
+        --radius: 0.75rem;
+    }
+    .dark {
+        --background: 230 28% 4%;
+        --foreground: 210 40% 98%;
+        --card: 226 29% 11%;
+        --card-foreground: 210 40% 98%;
+        --popover: 226 29% 10%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 217 91% 60%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 226 24% 16%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 226 24% 16%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 226 24% 18%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 350 89% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 225 18% 18%;
+        --input: 225 18% 20%;
+        --ring: 217 91% 60%;
+    }
+}
+
+@layer base {
+    * { @apply border-border; }
+    body { @apply bg-background text-foreground; }
+}
+
+/* Ticker marquee */
+@keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+.animate-marquee {
+    animation: marquee 55s linear infinite;
+    will-change: transform;
+}
+.animate-marquee:hover { animation-play-state: paused; }
+
+/* Subtle pulse for live dot */
+@keyframes livepulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+.live-dot { animation: livepulse 1.6s ease-in-out infinite; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+
+::selection { background: hsl(var(--primary) / 0.3); }
+
+.glass {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(14px);
+}
