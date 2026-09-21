@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 from datetime import datetime, timezone
 
 from typing import Optional
@@ -102,7 +103,8 @@ Provide 3 likely_catalysts, 3 key_metrics, 3 analyst_takeaways, 2 risk_flags."""
         raw = await chat.send_message(UserMessage(text=prompt))
         analysis = _extract_json(raw)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI analysis failed: {str(e)}")
+        logging.getLogger(__name__).warning(f"AI analysis failed for {symbol}: {e}")
+        raise HTTPException(status_code=502, detail="AI analysis is temporarily unavailable. Please try again later.")
 
     result = {
         "symbol": q["symbol"],
@@ -119,7 +121,7 @@ Provide 3 likely_catalysts, 3 key_metrics, 3 analyst_takeaways, 2 risk_flags."""
 
 
 @router.post("/analyze")
-async def analyze(payload: AnalyzeInput):
+async def analyze(payload: AnalyzeInput, user: dict = Depends(get_current_user)):
     return await run_analysis(payload.symbol, payload.provider, payload.model)
 
 
@@ -177,7 +179,8 @@ Return JSON with EXACTLY these keys:
         raw = await chat.send_message(UserMessage(text=prompt))
         rating = _extract_json(raw)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI rating failed: {str(e)}")
+        logging.getLogger(__name__).warning(f"AI rating failed for {symbol}: {e}")
+        raise HTTPException(status_code=502, detail="AI rating is temporarily unavailable. Please try again later.")
     if rating.get("rating") not in ("Buy", "Hold", "Sell"):
         rating["rating"] = "Hold"
 
@@ -190,7 +193,7 @@ Return JSON with EXACTLY these keys:
 
 
 @router.post("/rating")
-async def ai_rating(payload: AnalyzeInput):
+async def ai_rating(payload: AnalyzeInput, user: dict = Depends(get_current_user)):
     return await run_rating(payload.symbol, payload.provider, payload.model)
 
 

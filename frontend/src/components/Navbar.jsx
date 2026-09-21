@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Activity, Briefcase, Star, Radar, Building2, Newspaper, Moon, Sun, LogOut, User } from "lucide-react";
+import { Activity, Briefcase, Star, Radar, Building2, Newspaper, Moon, Sun, LogOut, User, BookOpen } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +54,17 @@ export default function Navbar() {
               <div className="text-[10px] font-num uppercase tracking-widest text-muted-foreground">US · TSX</div>
             </div>
           </NavLink>
+
+          <a
+            href="https://www.amazon.ca/Intelligent-Investor-Third-Investing-Financial/dp/0063497476?crid=2NM61SYO4WVXZ&dib_tag=se&keywords=the+best+investor&qid=1790023293&sr=8-1&linkCode=ll2&tag=stewartcap-20&linkId=e6b604904148f21939e6895e39e6a730&ref_=as_li_ss_tl"
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            data-testid="affiliate-link"
+            title="The Intelligent Investor — our recommended read"
+            className="hidden lg:inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 hover:border-red-300 transition-colors"
+          >
+            <BookOpen className="w-3.5 h-3.5" /> Our Pick
+          </a>
 
           <div className="hidden md:flex items-center gap-1">
             {links.map((l) => (

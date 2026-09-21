@@ -1,5 +1,6 @@
 import os
 import re
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -229,7 +230,8 @@ async def ai_draft(payload: DraftInput, user: dict = Depends(get_current_user)):
     try:
         md = await chat.send_message(UserMessage(text=prompt))
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI draft failed: {str(e)}")
+        logging.getLogger(__name__).warning(f"AI draft failed: {e}")
+        raise HTTPException(status_code=502, detail="AI draft is temporarily unavailable. Please try again later.")
     md = md.strip()
     if md.startswith("```"):
         md = md.strip("`").lstrip("markdown").strip()

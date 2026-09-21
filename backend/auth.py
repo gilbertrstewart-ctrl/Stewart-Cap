@@ -16,6 +16,31 @@ EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 JWT_ALGORITHM = "HS256"
 TOKEN_TTL_DAYS = 7
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_MINUTES = 15
+
+
+async def _check_lockout(identifier: str):
+    rec = await db.login_attempts.find_one({"_id": identifier})
+    if not rec or rec.get("count", 0) < MAX_LOGIN_ATTEMPTS:
+        return
+    locked_until = rec.get("locked_until")
+    if locked_until and datetime.now(timezone.utc) < datetime.fromisoformat(locked_until):
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Please try again in a few minutes.")
+    await db.login_attempts.delete_one({"_id": identifier})
+
+
+async def _record_failed_login(identifier: str):
+    rec = await db.login_attempts.find_one({"_id": identifier})
+    count = (rec.get("count", 0) if rec else 0) + 1
+    update = {"count": count, "updated_at": datetime.now(timezone.utc).isoformat()}
+    if count >= MAX_LOGIN_ATTEMPTS:
+        update["locked_until"] = (datetime.now(timezone.utc) + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)).isoformat()
+    await db.login_attempts.update_one({"_id": identifier}, {"$set": update}, upsert=True)
+
+
+async def _clear_login_attempts(identifier: str):
+    await db.login_attempts.delete_one({"_id": identifier})
 
 
 def hash_password(password: str) -> str:
@@ -68,7 +93,7 @@ async def get_current_user(request: Request) -> dict:
 class RegisterInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
 
 
 class LoginInput(BaseModel):
@@ -99,11 +124,15 @@ async def register(payload: RegisterInput):
 
 
 @router.post("/login")
-async def login(payload: LoginInput):
+async def login(payload: LoginInput, request: Request):
     email = payload.email.lower()
+    ident = f"{request.client.host if request.client else 'unknown'}:{email}"
+    await _check_lockout(ident)
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
+        await _record_failed_login(ident)
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    await _clear_login_attempts(ident)
     serialized = serialize(user)
     token = create_token(serialized["id"], email)
     return {"token": token, "user": serialized}
@@ -163,8 +192,8 @@ async def google_session(payload: SessionInput):
 
 
 async def seed_admin():
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@apexticker.com").lower()
-    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    admin_email = os.environ["ADMIN_EMAIL"].lower()
+    admin_password = os.environ["ADMIN_PASSWORD"]
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:
         await db.users.insert_one({
