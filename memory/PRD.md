@@ -77,3 +77,18 @@ Build an app to track investments, a stock watchlist, stocks reaching 52-week hi
 ## 2026-06 — Iteration 9 (tested: iteration_9.json) + display rule
 - Dividend Tracker (GET /api/portfolio/dividends; DividendCard on Dashboard), Percent alerts (alerts.kind = price|pct), Share button on public articles (copy/X/LinkedIn/email), CAD/USD portfolio toggle (summary_cad/summary_usd, fx, history?currency=).
 - Display rule (user): every increase/decrease shows dollars & cents AND percent, e.g. "+2.76 (+1.24%)" — helper fmtChange in utils/format.js, used in ticker, market strip, watchlist, movers, ideas, search, article ticker chips, 52W distance badges. (Self-tested via screenshot.)
+
+
+## Security Hardening (2026-06 — iteration 10)
+- Fixed HIGH: admin account no longer uses weak/self-restoring default. `seed_admin` requires ADMIN_EMAIL/ADMIN_PASSWORD env (no defaults, fail-fast). New strong ADMIN_PASSWORD set in backend/.env; recorded in test_credentials.md.
+- AI endpoints `/api/ai/analyze` and `/api/ai/rating` now require auth (Depends get_current_user) — anonymous calls return 401 (stops LLM cost abuse).
+- Login brute-force lockout: 5 failed attempts per client-IP:email -> HTTP 429 for 15 min (login_attempts collection). Client IP derived from X-Forwarded-For (k8s-safe).
+- Generic error messages on AI/draft failures (no internal exception text leaked).
+- CORS restricted to app origin via CORS_ORIGINS.
+- Registration password minimum length raised 6 -> 8.
+- Left as-is per user: anonymous market quote/search symbol registration (SEC-003).
+
+## UI (2026-06)
+- Fixed navbar/tabs overlapping the market-overview index strip (added pt-9 to root Layout to reserve fixed ticker height).
+- Added Amazon affiliate "Our Pick" link (data-testid affiliate-link) after the STEWART CAP brand -> amazon.ca Intelligent Investor page (tag=stewartcap-20). Hidden below lg breakpoint.
+

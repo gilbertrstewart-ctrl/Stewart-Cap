@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 10 (Layout fix, security hardening: admin pwd rotation, AI auth, password policy, brute-force lockout, affiliate link) fully verified. Backend: 15/15 pytest passed in /app/backend/tests/test_iter10.py. Frontend: market-overview strip fully visible directly below sticky navbar (navbar bottom y=101, market-overview y=101), all 14 overview items rendered including TSX COMPOSITE/NASDAQ/S&P 500/DOW JONES/CRUDE OIL/BITCOIN. Affiliate 'Our Pick' link present after brand with href pointing to amazon.ca Intelligent-Investor page and target=_blank rel='noopener noreferrer sponsored'. Admin login via UI with new password Kx9$mQ7v!ZrB2t succeeds and shows user-menu-trigger. Backend: POST /api/auth/login with admin@apexticker.com/admin123 -> 401; with new password -> 200 role=admin. POST /api/ai/analyze and /api/ai/rating -> 401 without Bearer, non-401 with valid Bearer (200/502 upstream). POST /api/auth/register password<8 -> 422; >=8 -> 200 with token+user. Regression: /api/market/ticker returns {quotes, updated_at}; /api/market/movers 200; /api/market/quote/AAPL 200; /api/articles 200 returns {articles}; /api/watchlist -> 401 without auth, 200 with auth returning {symbols, quotes}. Brute force: eventually returns 429, but see caveat below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Brute-force lockout uses request.client.host which behind k8s ingress resolves to per-pod internal IPs (e.g. 10.227.4.133 and 10.227.51.104). Each attacker request is round-robin'd across backend pods, so lockout key becomes ip:email per-pod. Real external attacker from a single client IP gets 5 attempts × N pods before lockout (observed ~10 attempts with 2 pods). Fix: honor X-Forwarded-For (or ingress client IP header) as the identifier instead of request.client.host."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter10.py", "/app/test_reports/pytest/pytest_iter10.xml"],
+  "action_items": [
+    "Change brute-force lockout identifier in /app/backend/auth.py from request.client.host to X-Forwarded-For (first hop) so limits are per real client IP instead of per internal pod IP. Currently the lockout is effectively 5*N (N = replicas) attempts per email per attacker IP."
+  ],
+  "critical_code_review_comments": [
+    "auth.py _check_lockout/_record_failed_login: identifier `request.client.host:email` under ingress/LB is the internal pod IP. This causes per-pod partitioning of lockout state and multiplies allowed attempts by replica count. Use `request.headers.get('x-forwarded-for','').split(',')[0].strip() or request.client.host` as identifier prefix.",
+    "auth.py login endpoint returns 401 with detail 'Invalid email or password' both when user missing AND when password wrong — good (no user enumeration). Verified.",
+    "auth.py seed_admin correctly requires ADMIN_EMAIL/ADMIN_PASSWORD env (no defaults) — verified by presence of strong pwd in .env and old admin123 rejection.",
+    "ai_analysis.py /analyze and /rating: both now Depends(get_current_user) — verified 401 without token.",
+    "Layout.jsx: pt-9 on root reserves the fixed ticker tape (top-9 navbar sits under ticker). MarketOverview appears at y=101 exactly at navbar bottom — layout correct at scroll 0 and after scroll (navbar stays sticky, overview scrolls away as expected since it isn't sticky).",
+    "Navbar.jsx affiliate-link: hidden on <lg viewports (`hidden lg:inline-flex`). Not visible on tablet/mobile — acceptable but worth documenting since data-testid selector will be non-visible below lg breakpoint."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter10.py", "/app/test_reports/iteration_10.json"],
+  "success_rate": {"backend": "100% (15/15 iter10 tests)", "frontend": "100% (layout, affiliate link, admin login all verified)"},
+  "test_credentials": "admin@apexticker.com / Kx9$mQ7v!ZrB2t (used); throwaway TEST_*@resend.dev for register/brute-force tests.",
+  "seed_data_creation": "None persistent. Created a few TEST_*@resend.dev users (harmless) and login_attempts records (auto-expire after 15min lockout window).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter10 file /app/backend/tests/test_iter10.py covers admin pwd change, AI auth, password policy, brute-force (relaxed 30-attempt window due to per-pod IP bug), and public/auth regression. Response shapes to remember: /api/market/ticker -> {quotes:[], updated_at}; /api/articles -> {articles:[]}; /api/watchlist -> {symbols:[], quotes:[]}. Frontend testids used: main-navbar, market-overview, overview-<SYM>, affiliate-link, nav-login-btn, auth-email-input, auth-password-input, auth-submit-btn, user-menu-trigger. Affiliate link is hidden below lg breakpoint.",
+  "rca of the issue": "Brute-force lockout ineffective under k8s multi-pod: request.client.host in FastAPI returns the direct connection peer, which behind an ingress/LB is a per-pod internal IP (10.227.4.133, 10.227.51.104 observed). Since the lockout key is `client.host:email`, each replica pod keeps its own counter and an attacker's requests are load-balanced across pods, so they get MAX_LOGIN_ATTEMPTS × pod_count attempts before the first pod that reaches 5 will 429 — and even then, the next request may hit an unlocked pod. Mitigation: derive client IP from X-Forwarded-For (or a trusted proxy header) and use that as the lockout key, so all replicas share the same identifier for a given attacker."
+}

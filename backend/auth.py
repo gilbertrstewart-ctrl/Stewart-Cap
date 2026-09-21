@@ -43,6 +43,13 @@ async def _clear_login_attempts(identifier: str):
     await db.login_attempts.delete_one({"_id": identifier})
 
 
+def _client_ip(request: Request) -> str:
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -126,7 +133,7 @@ async def register(payload: RegisterInput):
 @router.post("/login")
 async def login(payload: LoginInput, request: Request):
     email = payload.email.lower()
-    ident = f"{request.client.host if request.client else 'unknown'}:{email}"
+    ident = f"{_client_ip(request)}:{email}"
     await _check_lockout(ident)
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
