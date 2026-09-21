@@ -68,3 +68,8 @@ Build an app to track investments, a stock watchlist, stocks reaching 52-week hi
 - /articles: admin publishes public articles; any user writes private notes (only visible to author). Markdown editor with live preview, tags, linked tickers (live chips on article page), cover URL.
 - AI draft: POST /api/articles/ai-draft {title, symbol?, provider} (ChatGPT/Claude) writes a first draft grounded in live quote + consensus.
 - Backend: /app/backend/articles.py; frontend pages ArticlesPage, ArticlePage, components ArticleEditor, MarkdownView. Deps: react-markdown, remark-gfm.
+
+## 2026-06 — Iteration 8 (tested: iteration_8.json)
+- Article comments (public articles; author/admin delete), bookmarks (Save + "Saved" scope), weekly newsletter (Fridays 08:00 ET to digest subscribers; /api/newsletter/preview|send; APP_PUBLIC_URL in backend .env for links), portfolio value chart (GET /api/portfolio/history?range=1W|1M|3M|1Y).
+- Market overview strip under navbar: TSX Composite, NASDAQ, S&P 500, Dow, Crude (CL=F), Bitcoin, CAD→USD (GET /api/market/overview, 60s cache).
+- Color rule (user): UP = green, DOWN = red everywhere (trendColor/trendHex/tapeTrendColor); brand stays red/white/blue on light-blue bg.
