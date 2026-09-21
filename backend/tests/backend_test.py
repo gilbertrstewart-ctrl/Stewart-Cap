@@ -62,11 +62,18 @@ def test_movers(s):
     r = s.get(f"{BASE_URL}/api/market/movers", timeout=30)
     assert r.status_code == 200
     d = r.json()
-    for k in ("high_52w", "low_52w", "big_movers"):
-        assert k in d
-    big_syms = {q["symbol"] for q in d["big_movers"]}
-    assert {"SHOP.TO", "NVDA"}.issubset(big_syms), f"missing up movers: {big_syms}"
-    assert {"TSLA", "SU.TO"}.issubset(big_syms), f"missing down movers: {big_syms}"
+    # New keys after Yahoo Finance integration
+    for k in ("near_high", "near_low", "big_movers"):
+        assert k in d, f"missing key {k}"
+    # near_high items should be within 10% of 52w high
+    for q in d["near_high"]:
+        assert q.get("near_high") is True
+        assert 0 <= q["pct_from_high"] <= 10
+        assert "at_high" in q
+    # near_low items within 10% of low
+    for q in d["near_low"]:
+        assert 0 <= q["pct_from_low"] <= 10
+    # big_movers may legitimately be empty with real data
     for q in d["big_movers"]:
         assert abs(q["change_percent"]) >= 10
         assert q["direction"] in ("up", "down")
@@ -77,7 +84,10 @@ def test_quote_and_history(s):
     assert r.status_code == 200
     q = r.json()
     assert q["symbol"] == "AAPL" and q["price"] > 0
-    assert q.get("source") in ("simulated", "alpha_vantage")
+    assert q.get("source") in ("simulated", "live", "alpha_vantage")
+    # new fields
+    for k in ("pct_from_high", "pct_from_low", "near_high", "at_high", "near_low", "as_of"):
+        assert k in q, f"missing {k}"
 
     r = s.get(f"{BASE_URL}/api/market/history/AAPL?range=1M", timeout=30)
     assert r.status_code == 200

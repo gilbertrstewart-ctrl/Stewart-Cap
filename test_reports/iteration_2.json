@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 2 (STEWART CAP + Yahoo live prices + linear watchlist + near-52W-high alerts) fully verified. Backend: 15/15 pytest tests pass against public URL; movers returns keys near_high/near_low/big_movers, quote returns pct_from_high/pct_from_low/near_high/at_high/near_low/source='live'/as_of, big_movers legitimately empty with real Yahoo data (expected). Frontend E2E: page <title>='STEWART CAP - Investment Tracker', navbar/footer brand rebranded, ticker tape animates with live prices, admin login stores apex_token, Movers page has all 3 tabs (tab-big-movers empty-state visible, tab-52w-high populated), Watchlist renders as linear list (watchlist-list + watch-row-NVDA + watch-nearhigh-NVDA badge + watch-analyze/remove buttons), clicking row opens LARGE stock-detail-modal (max-w-4xl) with detail-nearhigh-alert + range-1D/1M/5Y toggles + detail-analyze-btn, AI Cause Analysis modal returns real Claude analysis (catalyst_summary, Bullish 72/100 sentiment gauge, 3 likely_catalysts, key_metrics cards, analyst_takeaways, risk_flags).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "StockDetailModal chart", "issues": ["Recharts warns 'width(-1) and height(-1) of chart should be greater than 0' on first render before ResponsiveContainer measures; non-blocking, chart renders after mount. Consider setting explicit min-height on chart wrapper."]},
+      {"screen": "All Radix Dialogs (AuthModal, StockDetailModal, AiAnalysisModal, AddHoldingDialog, AddWatchlistDialog)", "issues": ["Same accessibility warnings from iteration_1 persist: missing DialogTitle/DialogDescription (or aria-describedby). Non-blocking but visible in console as errors."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Low) Wrap hidden DialogTitle/DialogDescription with VisuallyHidden in Radix dialogs to silence a11y console errors.",
+    "(Low) Give the StockDetailModal chart wrapper an explicit min-height (e.g., h-64) so Recharts ResponsiveContainer doesn't emit width/height(-1) warnings on first render."
+  ],
+  "critical_code_review_comments": [
+    "server.py CORS: allow_credentials=True combined with default allow_origins='*' is invalid per spec; set CORS_ORIGINS explicitly for prod.",
+    "market_data.py ensure_fresh: single global _last_refresh guard means the first concurrent request that beats the background _refresher will still wait on Yahoo. Acceptable because startup warms it and refresher runs every 45s (< LIVE_TTL=60).",
+    "market_data.py: /api/market/history calls Yahoo on every request with no cache — could hammer Yahoo under load. Add a small per-symbol+range TTL cache.",
+    "market_data.py movers still returns legacy keys high_52w/low_52w alongside near_high/near_low — fine for backward-compat, but document.",
+    "auth.py get_current_user: ObjectId(payload['sub']) still not wrapped in try/except; malformed sub -> 500. Carried over from iteration 1.",
+    "StockDetailModal polling: verify interval is cleared on unmount to avoid setState-on-unmounted warnings (not observed but worth an audit)."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@apexticker.com / admin123 (works). apex_token stored in localStorage.",
+  "seed_data_creation": "Fresh test_user_* accounts via /api/auth/register. Admin watchlist got NVDA added during UI test (safe to leave).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend movers now uses near_high/near_low; big_movers legitimately empty with live Yahoo prices — do NOT assert specific tickers in big_movers. Quote source is 'live' when Yahoo reachable, falls back to 'simulated'. Watchlist-list container only mounts when there is >=1 symbol; empty state uses empty-add-watchlist-btn. StockDetailModal opens via clicking a watch-row-{SYMBOL}.",
+  "rca of the issue": "N/A - no functional bugs found."
+}
