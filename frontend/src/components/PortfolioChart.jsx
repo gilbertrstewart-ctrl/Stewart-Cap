@@ -2,19 +2,21 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Loader2 } from "lucide-react";
-import { fmtCurrency, fmtPct, trendColor, trendHex } from "@/utils/format";
+import { fmtPct, trendColor, trendHex } from "@/utils/format";
+
+const money = (n, c) => `${c === "USD" ? "US$" : "C$"}${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const RANGES = ["1W", "1M", "3M", "1Y"];
 
-export default function PortfolioChart({ refreshKey }) {
+export default function PortfolioChart({ refreshKey, currency = "CAD" }) {
   const [range, setRange] = useState("1M");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    api.get("/portfolio/history", { params: { range } }).then((r) => setData(r.data)).catch(() => setData({ points: [] })).finally(() => setLoading(false));
-  }, [range, refreshKey]);
+    api.get("/portfolio/history", { params: { range, currency } }).then((r) => setData(r.data)).catch(() => setData({ points: [] })).finally(() => setLoading(false));
+  }, [range, refreshKey, currency]);
 
   const pts = data?.points || [];
   const first = pts[0]?.value, last = pts[pts.length - 1]?.value;
@@ -25,10 +27,10 @@ export default function PortfolioChart({ refreshKey }) {
     <div data-testid="portfolio-chart" className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <div className="font-heading font-semibold">Portfolio value</div>
+          <div className="font-heading font-semibold">Portfolio value <span className="text-xs font-num text-muted-foreground">({currency})</span></div>
           {pts.length > 1 && (
             <div className={`font-num text-sm ${trendColor(change)}`} data-testid="portfolio-chart-change">
-              {change >= 0 ? "+" : "-"}{fmtCurrency(Math.abs(change))} ({fmtPct(changePct)}) over {range}
+              {change >= 0 ? "+" : "-"}{money(Math.abs(change), currency)} ({fmtPct(changePct)}) over {range}
             </div>
           )}
         </div>
@@ -58,7 +60,7 @@ export default function PortfolioChart({ refreshKey }) {
               <Tooltip
                 contentStyle={{ background: "#FFFFFF", border: "1px solid #BFD7F5", color: "#0B1F4D", borderRadius: 8, fontSize: 12 }}
                 labelFormatter={(l) => l}
-                formatter={(v) => [fmtCurrency(v), "Value"]}
+                formatter={(v) => [money(v, currency), "Value"]}
               />
               <Area type="monotone" dataKey="value" stroke={trendHex(change)} strokeWidth={2} fill="url(#pv)" />
             </AreaChart>

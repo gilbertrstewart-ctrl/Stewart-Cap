@@ -134,3 +134,42 @@ async def stock_ideas(user: dict = Depends(get_current_user)):
     for s, c in zip(valid, cons):
         ideas.append({**quote(s), "because": because[s][:3], "score": round(scores[s], 3), "consensus": c})
     return {"ideas": ideas, "based_on": owned}
+
+
+# ---------------- Dividends ----------------
+DIVIDEND_TTL = 12 * 3600
+_dividend_cache: dict = {}
+
+
+async def fetch_dividend(symbol: str) -> dict | None:
+    now = time.time()
+    c = _dividend_cache.get(symbol)
+    if c and now - c[0] < c[2]:
+        return c[1]
+    data = None
+    try:
+        async with httpx.AsyncClient(timeout=10, headers=UA, cookies=_crumb["cookies"] or None) as client:
+            for attempt in range(2):
+                crumb, _ = await _get_crumb(client, force=attempt == 1)
+                r = await client.get(
+                    f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}",
+                    params={"modules": "summaryDetail,calendarEvents", "crumb": crumb},
+                )
+                body = r.json()
+                res = (body.get("quoteSummary") or {}).get("result")
+                if res:
+                    sd = res[0].get("summaryDetail") or {}
+                    ce = res[0].get("calendarEvents") or {}
+                    rate = _raw(sd, "dividendRate") or _raw(sd, "trailingAnnualDividendRate") or 0
+                    data = {
+                        "symbol": symbol, "currency": sd.get("currency") or ("CAD" if symbol.endswith(".TO") else "USD"),
+                        "dividend_rate": round(float(rate), 4), "dividend_yield": round(float(_raw(sd, "dividendYield") or 0) * 100, 2),
+                        "ex_date": _raw(ce, "exDividendDate") or _raw(sd, "exDividendDate"), "pay_date": _raw(ce, "dividendDate"),
+                    }
+                    break
+                if (body.get("quoteSummary") or body.get("finance") or {}).get("error", {}).get("code") != "Unauthorized":
+                    break
+    except Exception as e:
+        logger.warning(f"dividend fetch failed {symbol}: {e}")
+    _dividend_cache[symbol] = (now, data, DIVIDEND_TTL if data else 300)
+    return data

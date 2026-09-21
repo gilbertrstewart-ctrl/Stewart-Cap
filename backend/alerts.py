@@ -25,6 +25,7 @@ class AlertInput(BaseModel):
     symbol: str
     target: float = Field(gt=0)
     direction: str = Field(pattern="^(above|below)$")
+    kind: str = Field(default="price", pattern="^(price|pct)$")
 
 
 async def _list_alerts(user_id: str) -> dict:
@@ -49,8 +50,10 @@ async def create_alert(payload: AlertInput, user: dict = Depends(get_current_use
     symbol = payload.symbol.upper().strip()
     if symbol not in UNIVERSE and not await register_symbol(symbol):
         raise HTTPException(status_code=400, detail=f"Could not find ticker {symbol}")
+    if payload.kind == "pct" and payload.target > 100:
+        raise HTTPException(status_code=400, detail="Percent threshold must be 100 or less")
     await db.alerts.insert_one({
-        "user_id": user["id"], "symbol": symbol, "target": round(payload.target, 2),
+        "user_id": user["id"], "symbol": symbol, "target": round(payload.target, 2), "kind": payload.kind,
         "direction": payload.direction, "triggered_at": None, "triggered_price": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -63,7 +66,11 @@ async def delete_alert(alert_id: str, user: dict = Depends(get_current_user)):
     return await _list_alerts(user["id"])
 
 
-def _crossed(a: dict, price: float) -> bool:
+def _crossed(a: dict, q: dict) -> bool:
+    if a.get("kind") == "pct":
+        pct = q["change_percent"]
+        return (a["direction"] == "above" and pct >= a["target"]) or (a["direction"] == "below" and pct <= -a["target"])
+    price = q["price"]
     return (a["direction"] == "above" and price >= a["target"]) or (a["direction"] == "below" and price <= a["target"])
 
 
@@ -73,7 +80,7 @@ async def check_price_alerts():
         if a["symbol"] not in UNIVERSE:
             continue
         q = quote(a["symbol"])
-        if not _crossed(a, q["price"]):
+        if not _crossed(a, q):
             continue
         now = datetime.now(timezone.utc).isoformat()
         await db.alerts.update_one({"_id": a["_id"]}, {"$set": {"triggered_at": now, "triggered_price": q["price"]}})

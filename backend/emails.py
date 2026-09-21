@@ -210,16 +210,23 @@ def _table(title: str, rows: str) -> str:
 
 
 async def send_price_alert_email(*, to: str, name: str, alert: dict, q: dict) -> str | None:
-    word = "rose above" if alert["direction"] == "above" else "fell below"
+    if alert.get("kind") == "pct":
+        word = "jumped more than" if alert["direction"] == "above" else "dropped more than"
+        headline = f"<strong>{word} {alert['target']:g}% today</strong> (now {q['change_percent']:+.2f}%)"
+        subject = f"{alert['symbol']} {'up' if alert['direction'] == 'above' else 'down'} {abs(q['change_percent']):.1f}% today"
+    else:
+        word = "rose above" if alert["direction"] == "above" else "fell below"
+        headline = f"<strong>{word} your target of ${alert['target']:,.2f}</strong>"
+        subject = f"{alert['symbol']} {word} ${alert['target']:,.2f}"
     body = (
         f"<p style='margin:0 0 14px'>Hi {escape(name or 'there')},</p>"
         f"<p style='margin:0 0 14px'><strong>{escape(alert['symbol'])}</strong> ({escape(str(q.get('name', '')))}) just "
-        f"<strong>{word} your target of ${alert['target']:,.2f}</strong>.</p>"
+        f"{headline}.</p>"
         f"<p style='margin:0 0 14px;font-size:22px'>Now: <strong>${q['price']:,.2f}</strong> &nbsp;{_pct(q['change_percent'])} today</p>"
         f"<p style='margin:0;color:#94a3b8;font-size:12px'>52-week range ${q['low_52']:,.2f} &ndash; ${q['high_52']:,.2f}. "
         "This alert has now been fired and will not repeat.</p>"
     )
-    return await send_email(to=to, subject=f"{alert['symbol']} {word} ${alert['target']:,.2f}", html=_SHELL.format(body=body))
+    return await send_email(to=to, subject=subject, html=_SHELL.format(body=body))
 
 
 async def send_digest_email(*, to: str, name: str, digest: dict) -> str | None:

@@ -4,11 +4,12 @@ import { useAuth } from "@/context/AuthContext";
 import { useModals } from "@/context/ModalContext";
 import AddHoldingDialog from "@/components/AddHoldingDialog";
 import PortfolioChart from "@/components/PortfolioChart";
+import DividendCard from "@/components/DividendCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, TrendingUp, Wallet, LineChart, Layers, Trash2, Sparkles, ArrowUpRight, Loader2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { fmtCurrency, fmtPct, fmtSigned, fmtPrice, trendColor } from "@/utils/format";
+import { fmtPct, fmtSigned, fmtPrice, trendColor } from "@/utils/format";
 import { toast } from "sonner";
 
 const COLORS = ["#1D4ED8", "#DC2626", "#60A5FA", "#F87171", "#0B2A6F", "#93C5FD", "#991B1B", "#3B82F6"];
@@ -19,6 +20,8 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [currency, setCurrency] = useState(() => localStorage.getItem("portfolio_ccy") || "CAD");
+  useEffect(() => localStorage.setItem("portfolio_ccy", currency), [currency]);
 
   const load = useCallback(() => {
     if (!user) return;
@@ -42,20 +45,33 @@ export default function Dashboard() {
 
   if (!user) return <SignedOutHero openAuth={openAuth} />;
 
-  const s = data?.summary;
+  const s = currency === "USD" ? data?.summary_usd : data?.summary_cad || data?.summary;
   const holdings = data?.holdings || [];
-  const pie = holdings.map((h) => ({ name: h.symbol, value: h.market_value }));
+  const pie = holdings.map((h) => ({ name: h.symbol, value: currency === "USD" ? h.market_value_usd : h.market_value_cad }));
+  const sym = currency === "USD" ? "US$" : "C$";
+  const money = (n) => `${sym}${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const signed = (n) => `${Number(n) >= 0 ? "+" : "-"}${money(Math.abs(n))}`;
 
   return (
     <div data-testid="portfolio-tracker-section" className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight">Portfolio</h1>
-          <p className="text-muted-foreground mt-1">Your holdings, live P/L and allocation.</p>
+          <p className="text-muted-foreground mt-1">
+            Your holdings, live P/L and allocation.
+            {data?.fx && <span className="font-num text-xs"> · 1 US$ = C${data.fx.usd_cad}</span>}
+          </p>
         </div>
-        <Button onClick={() => setAddOpen(true)} data-testid="add-holding-btn">
-          <Plus className="w-4 h-4 mr-2" /> Add holding
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border bg-card p-0.5" data-testid="currency-toggle">
+            {["CAD", "USD"].map((c) => (
+              <button key={c} data-testid={`currency-${c}`} onClick={() => setCurrency(c)} className={`px-3 py-1.5 rounded-md text-xs font-num font-semibold transition-colors ${currency === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>{c}</button>
+            ))}
+          </div>
+          <Button onClick={() => setAddOpen(true)} data-testid="add-holding-btn">
+            <Plus className="w-4 h-4 mr-2" /> Add holding
+          </Button>
+        </div>
       </div>
 
       {loading && !data ? (
@@ -65,15 +81,17 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard testid="stat-total-value" icon={Wallet} label="Total Value" value={fmtCurrency(s.total_value)} />
+            <StatCard testid="stat-total-value" icon={Wallet} label={`Total Value (${currency})`} value={money(s.total_value)} />
             <StatCard testid="stat-total-gain" icon={TrendingUp} label="Total Gain / Loss"
-              value={fmtSigned(s.total_gain)} sub={fmtPct(s.total_gain_percent)} tone={s.total_gain} />
+              value={signed(s.total_gain)} sub={fmtPct(s.total_gain_percent)} tone={s.total_gain} />
             <StatCard testid="stat-day-change" icon={LineChart} label="Day Change"
-              value={fmtSigned(s.day_change)} sub={fmtPct(s.day_change_percent)} tone={s.day_change} />
-            <StatCard testid="stat-invested" icon={Layers} label="Invested" value={fmtCurrency(s.total_cost)} />
+              value={signed(s.day_change)} sub={fmtPct(s.day_change_percent)} tone={s.day_change} />
+            <StatCard testid="stat-invested" icon={Layers} label={`Invested (${currency})`} value={money(s.total_cost)} />
           </div>
 
-          <PortfolioChart refreshKey={holdings.map((h) => h.id).join(",")} />
+          <PortfolioChart refreshKey={holdings.map((h) => h.id).join(",")} currency={currency} />
+
+          <DividendCard refreshKey={holdings.map((h) => h.id).join(",")} currency={currency} />
 
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -92,10 +110,13 @@ export default function Dashboard() {
                       </div>
                     </button>
                     <div className="text-right">
-                      <div className="font-num font-semibold">{fmtCurrency(h.market_value)}</div>
+                      <div className="font-num font-semibold">{h.currency === "CAD" ? "C$" : "US$"}{fmtPrice(h.market_value)}</div>
                       <div className={`font-num text-xs ${trendColor(h.gain)}`}>
                         {fmtSigned(h.gain)} ({fmtPct(h.gain_percent)})
                       </div>
+                      {h.currency !== currency && (
+                        <div className="font-num text-[10px] text-muted-foreground" data-testid={`holding-converted-${h.symbol}`}>≈ {money(currency === "USD" ? h.market_value_usd : h.market_value_cad)}</div>
+                      )}
                     </div>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-600" data-testid={`remove-holding-${h.symbol}`} onClick={() => remove(h.id, h.symbol)}>
                       <Trash2 className="w-4 h-4" />
@@ -117,7 +138,7 @@ export default function Dashboard() {
                     </Pie>
                     <Tooltip
                       contentStyle={{ background: "#FFFFFF", border: "1px solid #BFD7F5", color: "#0B1F4D", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v, n) => [fmtCurrency(v), n]}
+                      formatter={(v, n) => [money(v), n]}
                     />
                   </PieChart>
                 </ResponsiveContainer>

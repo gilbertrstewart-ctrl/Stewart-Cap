@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import MarkdownView from "@/components/MarkdownView";
 import ArticleEditor from "@/components/ArticleEditor";
 import Comments from "@/components/Comments";
+import ShareButton from "@/components/ShareButton";
 import { ArrowLeft, Pencil, Trash2, Lock, Globe, Clock, Loader2, Bookmark, BookmarkCheck } from "lucide-react";
 import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
 import { toast } from "sonner";
@@ -73,6 +74,7 @@ export default function ArticlePage() {
         <div className="flex items-center justify-between gap-3 flex-wrap text-sm text-muted-foreground">
           <span className="font-num">By {article.author_name} · {new Date(article.created_at).toLocaleDateString()} · <Clock className="w-3.5 h-3.5 inline -mt-0.5" /> {article.reading_minutes} min read</span>
           <div className="flex gap-2">
+            {article.visibility === "public" && <ShareButton title={article.title} summary={article.summary} />}
             <Button size="sm" variant={article.bookmarked ? "default" : "secondary"} onClick={toggleBookmark} data-testid="article-bookmark-btn">
               {article.bookmarked ? <BookmarkCheck className="w-4 h-4 mr-1.5" /> : <Bookmark className="w-4 h-4 mr-1.5" />} {article.bookmarked ? "Saved" : "Save"}
             </Button>

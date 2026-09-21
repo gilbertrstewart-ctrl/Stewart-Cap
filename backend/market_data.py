@@ -428,3 +428,20 @@ async def market_overview():
     if items:
         _overview_cache.update(at=now, data=items)
     return {"items": items, "updated_at": datetime.now(timezone.utc).isoformat()}
+
+
+_fx_cache = {"at": 0.0, "rate": None}
+
+
+async def cad_usd_rate() -> float:
+    """1 CAD in USD (cached 5 min)."""
+    if _fx_cache["rate"] and time.time() - _fx_cache["at"] < 300:
+        return _fx_cache["rate"]
+    res = await _fetch_yahoo("CADUSD=X")
+    if res:
+        _fx_cache.update(at=time.time(), rate=round(float(res["_meta"].get("regularMarketPrice")), 4))
+    return _fx_cache["rate"] or 0.73
+
+
+def symbol_currency(symbol: str) -> str:
+    return "CAD" if symbol.endswith((".TO", ".V", ".NE", ".CN")) else "USD"
