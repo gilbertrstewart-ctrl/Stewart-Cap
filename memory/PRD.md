@@ -58,3 +58,13 @@ Build an app to track investments, a stock watchlist, stocks reaching 52-week hi
 - Watchlist Sorting: % change gainers/losers, closest to 52W high, name, symbol, order added (localStorage `watch_sort`).
 - Ticker Speed Control: gear in ticker tape → speed slow/normal/fast + All markets / My watchlist (localStorage).
 - Daily Digest Email: DigestCard on /watchlist (toggle + Send now); scheduler weekdays after 08:00 America/Toronto, once/day per opted-in user (`digest_enabled`, `digest_last_sent` on user doc).
+
+## 2026-06 — Iteration 6: Recommendations (tested: iteration_6.json)
+- Wall Street consensus (Yahoo quoteSummary w/ crumb, cached 6h): GET /api/market/consensus/{symbol}; badge on watchlist rows (consensus_key) and in stock detail (trend bar, target, upside).
+- AI Buy/Hold/Sell rating: POST /api/ai/rating {symbol, provider} (ChatGPT gpt-5.4 / Claude), cached per day; shown in stock detail modal.
+- Stocks you may like: GET /api/recommendations (Yahoo recommendationsbysymbol from watchlist+holdings), StockIdeas on /watchlist with "Watch" quick-add.
+
+## 2026-06 — Iteration 7: Articles tab (tested: iteration_7.json)
+- /articles: admin publishes public articles; any user writes private notes (only visible to author). Markdown editor with live preview, tags, linked tickers (live chips on article page), cover URL.
+- AI draft: POST /api/articles/ai-draft {title, symbol?, provider} (ChatGPT/Claude) writes a first draft grounded in live quote + consensus.
+- Backend: /app/backend/articles.py; frontend pages ArticlesPage, ArticlePage, components ArticleEditor, MarkdownView. Deps: react-markdown, remark-gfm.
