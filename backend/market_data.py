@@ -247,3 +247,49 @@ async def search(q: str = ""):
         return {"results": all_quotes()[:12]}
     results = [quote(sym) for sym, s in UNIVERSE.items() if ql in sym.lower() or ql in s["name"].lower()]
     return {"results": results}
+
+
+_news_cache = {}
+
+
+@router.get("/news/{symbol}")
+async def get_news(symbol: str):
+    if symbol not in UNIVERSE:
+        raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
+    now = time.time()
+    cached = _news_cache.get(symbol)
+    if cached and now - cached[0] < cached[2]:
+        return {"symbol": symbol, "news": cached[1]}
+
+    # For TSX (.TO) tickers, plain symbol search is thin — also try base ticker and company name.
+    name = UNIVERSE[symbol]["name"].split(" Inc")[0].split(" Corp")[0].split(" Co.")[0].strip()
+    attempts = [symbol]
+    if "." in symbol:
+        attempts.append(symbol.split(".")[0])
+    attempts.append(name)
+
+    items = []
+    try:
+        async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
+            for query in attempts:
+                r = await client.get(
+                    "https://query1.finance.yahoo.com/v1/finance/search",
+                    params={"q": query, "newsCount": 8, "quotesCount": 0},
+                )
+                for n in r.json().get("news", []):
+                    if not n.get("title") or not n.get("link"):
+                        continue
+                    items.append({
+                        "title": n.get("title"),
+                        "publisher": n.get("publisher"),
+                        "link": n.get("link"),
+                        "published": n.get("providerPublishTime"),
+                    })
+                    if len(items) >= 4:
+                        break
+                if items:
+                    break
+    except Exception:
+        items = []
+    _news_cache[symbol] = (now, items, 300 if items else 30)
+    return {"symbol": symbol, "news": items}

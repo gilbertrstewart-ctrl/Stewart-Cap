@@ -4,11 +4,19 @@ import { useModals } from "@/context/ModalContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, TrendingUp, TrendingDown, Bell } from "lucide-react";
+import { Sparkles, Loader2, TrendingUp, TrendingDown, Bell, Newspaper, ExternalLink } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { fmtPrice, fmtPct, fmtMarketCap, fmtVolume, trendColor, trendHex } from "@/utils/format";
 
 const RANGES = ["1D", "1W", "1M", "3M", "1Y", "5Y"];
+
+const timeAgo = (unix) => {
+  if (!unix) return "";
+  const s = Math.floor(Date.now() / 1000 - unix);
+  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+};
 
 export default function StockDetailModal({ symbol, onClose }) {
   const { openAiAnalysis } = useModals();
@@ -16,6 +24,7 @@ export default function StockDetailModal({ symbol, onClose }) {
   const [range, setRange] = useState("1M");
   const [points, setPoints] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [news, setNews] = useState([]);
 
   useEffect(() => {
     if (!symbol) return;
@@ -39,6 +48,14 @@ export default function StockDetailModal({ symbol, onClose }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [symbol, range]);
+
+  useEffect(() => {
+    if (!symbol) {
+      setNews([]);
+      return;
+    }
+    api.get(`/market/news/${symbol}`).then((r) => setNews(r.data.news)).catch(() => setNews([]));
+  }, [symbol]);
 
   const up = quote ? quote.change_percent >= 0 : true;
   const rangePos = quote ? ((quote.price - quote.low_52) / (quote.high_52 - quote.low_52)) * 100 : 0;
@@ -151,6 +168,34 @@ export default function StockDetailModal({ symbol, onClose }) {
                 </div>
               ))}
             </div>
+
+            {news.length > 0 && (
+              <div data-testid="stock-news" className="mt-1">
+                <h4 className="font-heading font-semibold text-sm mb-2 flex items-center gap-1.5">
+                  <Newspaper className="w-4 h-4 text-muted-foreground" /> Latest News
+                </h4>
+                <div className="space-y-2">
+                  {news.map((n, i) => (
+                    <a
+                      key={i}
+                      href={n.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-testid={`news-item-${i}`}
+                      className="group flex items-start gap-2 rounded-lg border border-border p-3 hover:border-primary/40 hover:bg-secondary/40 transition-all"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium leading-snug group-hover:text-primary">{n.title}</div>
+                        <div className="text-[11px] text-muted-foreground mt-1 font-num">
+                          {n.publisher}{n.published ? ` · ${timeAgo(n.published)}` : ""}
+                        </div>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <Button
               className="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-black"

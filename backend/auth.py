@@ -2,12 +2,16 @@ import os
 from datetime import datetime, timezone, timedelta
 
 import bcrypt
+import httpx
 import jwt
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, EmailStr, Field
 
 from db import db, serialize
+from emails import send_welcome_email
+
+EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 JWT_ALGORITHM = "HS256"
@@ -87,6 +91,10 @@ async def register(payload: RegisterInput):
     result = await db.users.insert_one(doc)
     user = serialize({**doc, "_id": result.inserted_id})
     token = create_token(user["id"], email)
+    try:
+        await send_welcome_email(to=email, name=payload.name)
+    except Exception:
+        pass
     return {"token": token, "user": user}
 
 
@@ -104,6 +112,54 @@ async def login(payload: LoginInput):
 @router.get("/me")
 async def me(user: dict = Depends(get_current_user)):
     return user
+
+
+class SessionInput(BaseModel):
+    session_id: str
+
+
+@router.post("/session")
+async def google_session(payload: SessionInput):
+    """Exchange an Emergent Google OAuth session_id for our own JWT."""
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(EMERGENT_SESSION_URL, headers={"X-Session-ID": payload.session_id})
+        if r.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid or expired Google session")
+        data = r.json()
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Could not verify Google session")
+
+    email = (data.get("email") or "").lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Google account has no email")
+
+    existing = await db.users.find_one({"email": email})
+    if existing is None:
+        doc = {
+            "name": data.get("name") or email.split("@")[0],
+            "email": email,
+            "picture": data.get("picture"),
+            "role": "user",
+            "auth_provider": "google",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        result = await db.users.insert_one(doc)
+        user = serialize({**doc, "_id": result.inserted_id})
+        try:
+            await send_welcome_email(to=email, name=user["name"])
+        except Exception:
+            pass
+    else:
+        if data.get("picture") and not existing.get("picture"):
+            await db.users.update_one({"_id": existing["_id"]}, {"$set": {"picture": data.get("picture")}})
+            existing["picture"] = data.get("picture")
+        user = serialize(existing)
+
+    token = create_token(user["id"], email)
+    return {"token": token, "user": user}
 
 
 async def seed_admin():

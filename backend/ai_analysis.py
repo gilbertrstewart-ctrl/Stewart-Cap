@@ -2,13 +2,17 @@ import os
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 from db import db
 from market_data import quote
+from auth import get_current_user
+from emails import send_email, build_analysis_email
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -23,8 +27,19 @@ SYSTEM_MESSAGE = (
 )
 
 
+DEFAULT_MODELS = {"openai": "gpt-5.4", "anthropic": "claude-sonnet-4-6"}
+
+
 class AnalyzeInput(BaseModel):
     symbol: str
+    provider: Optional[str] = "anthropic"
+    model: Optional[str] = None
+
+
+class EmailAnalysisInput(BaseModel):
+    symbol: str
+    provider: Optional[str] = "anthropic"
+    model: Optional[str] = None
 
 
 def _extract_json(text: str) -> dict:
@@ -39,11 +54,12 @@ def _extract_json(text: str) -> dict:
     return json.loads(text)
 
 
-@router.post("/analyze")
-async def analyze(payload: AnalyzeInput):
-    q = quote(payload.symbol)
+async def run_analysis(symbol: str, provider: str = "anthropic", model: str = None) -> dict:
+    q = quote(symbol)
+    provider = provider if provider in DEFAULT_MODELS else "anthropic"
+    model = model or DEFAULT_MODELS[provider]
     day_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    cache_id = f"{payload.symbol}:{day_key}:{round(q['change_percent'])}"
+    cache_id = f"{symbol}:{provider}:{model}:{day_key}:{round(q['change_percent'])}"
 
     cached = await db.ai_analysis.find_one({"_id": cache_id})
     if cached:
@@ -77,9 +93,9 @@ Provide 3 likely_catalysts, 3 key_metrics, 3 analyst_takeaways, 2 risk_flags."""
 
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
-        session_id=f"analysis-{payload.symbol}",
+        session_id=f"analysis-{symbol}-{provider}",
         system_message=SYSTEM_MESSAGE,
-    ).with_model("anthropic", "claude-sonnet-4-6")
+    ).with_model(provider, model)
 
     try:
         raw = await chat.send_message(UserMessage(text=prompt))
@@ -92,8 +108,24 @@ Provide 3 likely_catalysts, 3 key_metrics, 3 analyst_takeaways, 2 risk_flags."""
         "name": q["name"],
         "change_percent": q["change_percent"],
         "price": q["price"],
+        "provider": provider,
+        "model": model,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "analysis": analysis,
     }
     await db.ai_analysis.update_one({"_id": cache_id}, {"$set": {"data": result}}, upsert=True)
     return result
+
+
+@router.post("/analyze")
+async def analyze(payload: AnalyzeInput):
+    return await run_analysis(payload.symbol, payload.provider, payload.model)
+
+
+@router.post("/email")
+async def email_analysis(payload: EmailAnalysisInput, user: dict = Depends(get_current_user)):
+    result = await run_analysis(payload.symbol, payload.provider, payload.model)
+    html = build_analysis_email(user.get("name", "there"), result)
+    subject = f"STEWART CAP: AI analysis for {result['symbol']}"
+    await send_email(to=user["email"], subject=subject, html=html)
+    return {"status": "sent", "to": user["email"]}

@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, AlertTriangle, TrendingUp, CheckCircle2, Gauge } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Loader2, AlertTriangle, TrendingUp, CheckCircle2, Gauge, Mail } from "lucide-react";
 import { fmtPct, trendColor } from "@/utils/format";
+import { toast } from "sonner";
 
 export default function AiAnalysisModal({ symbol, onClose }) {
+  const { user, openAuth } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [provider, setProvider] = useState("anthropic");
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!symbol) {
@@ -20,11 +26,28 @@ export default function AiAnalysisModal({ symbol, onClose }) {
     setError("");
     setData(null);
     api
-      .post("/ai/analyze", { symbol })
+      .post("/ai/analyze", { symbol, provider })
       .then((r) => setData(r.data))
       .catch((e) => setError(e.response?.data?.detail || "Analysis failed. Please try again."))
       .finally(() => setLoading(false));
-  }, [symbol]);
+  }, [symbol, provider]);
+
+  const emailMe = async () => {
+    if (!user) {
+      toast.error("Sign in to email yourself the analysis");
+      openAuth("login");
+      return;
+    }
+    setSending(true);
+    try {
+      const { data: res } = await api.post("/ai/email", { symbol, provider });
+      toast.success(`Sent to ${res.to}`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to send email");
+    } finally {
+      setSending(false);
+    }
+  };
 
   const a = data?.analysis;
   const score = a?.sentiment_score ?? 50;
@@ -48,6 +71,28 @@ export default function AiAnalysisModal({ symbol, onClose }) {
             </div>
           </div>
         </DialogHeader>
+
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="inline-flex rounded-lg bg-secondary p-1" data-testid="ai-engine-toggle">
+            {[["anthropic", "Claude"], ["openai", "ChatGPT"]].map(([p, label]) => (
+              <button
+                key={p}
+                data-testid={`engine-${p}`}
+                onClick={() => setProvider(p)}
+                disabled={loading}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                  provider === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Button size="sm" variant="secondary" disabled={!data || sending} onClick={emailMe} data-testid="ai-email-btn">
+            {sending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Mail className="w-4 h-4 mr-1.5" />}
+            Email me this
+          </Button>
+        </div>
 
         {loading && (
           <div className="h-64 grid place-items-center gap-3">

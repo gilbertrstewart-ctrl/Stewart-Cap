@@ -11,6 +11,21 @@ export function AuthProvider({ children }) {
   const [authMode, setAuthMode] = useState("login");
 
   useEffect(() => {
+    const hash = window.location.hash || "";
+    if (hash.includes("session_id=")) {
+      const sid = new URLSearchParams(hash.replace(/^#/, "")).get("session_id");
+      api
+        .post("/auth/session", { session_id: sid })
+        .then(({ data }) => {
+          localStorage.setItem("apex_token", data.token);
+          setUser(data.user);
+        })
+        .catch(() => setUser(false))
+        .finally(() => {
+          window.history.replaceState({}, "", window.location.pathname);
+        });
+      return;
+    }
     const token = localStorage.getItem("apex_token");
     if (!token) {
       setUser(false);
@@ -24,6 +39,12 @@ export function AuthProvider({ children }) {
         setUser(false);
       });
   }, []);
+
+  const loginWithGoogle = () => {
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    const redirectUrl = window.location.origin + "/";
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
 
   const login = async (email, password) => {
     const { data } = await api.post("/auth/login", { email, password });
@@ -51,7 +72,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, register, logout, authOpen, setAuthOpen, authMode, setAuthMode, openAuth, formatApiErrorDetail }}
+      value={{ user, login, register, logout, loginWithGoogle, authOpen, setAuthOpen, authMode, setAuthMode, openAuth, formatApiErrorDetail }}
     >
       {children}
     </AuthContext.Provider>
