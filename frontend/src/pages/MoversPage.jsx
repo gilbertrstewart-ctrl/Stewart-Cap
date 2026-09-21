@@ -59,7 +59,7 @@ export default function MoversPage() {
                   testid={`big-mover-${q.symbol}`}
                   onOpen={() => openStockDetail(q.symbol)}
                   right={
-                    <Badge className={`border-0 ${q.direction === "up" ? "bg-blue-600/15 text-blue-700" : "bg-red-600/15 text-red-600"}`}>
+                    <Badge className={`border-0 ${q.direction === "up" ? "bg-green-600/15 text-green-700" : "bg-red-600/15 text-red-600"}`}>
                       {q.direction === "up" ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
                       {q.direction === "up" ? "Surging" : "Plunging"}
                     </Badge>
@@ -84,7 +84,7 @@ export default function MoversPage() {
               {data.near_high.map((q) => (
                 <StockCard key={q.symbol} quote={q} testid={`high-mover-${q.symbol}`} onOpen={() => openStockDetail(q.symbol)}
                   right={
-                    <Badge className={`border-0 ${q.at_high ? "bg-blue-600/20 text-blue-800" : "bg-blue-600/10 text-blue-700"}`}>
+                    <Badge className={`border-0 ${q.at_high ? "bg-green-600/20 text-green-800" : "bg-green-600/10 text-green-700"}`}>
                       <Bell className="w-3 h-3 mr-1" /> {q.at_high ? "At high" : `${q.pct_from_high}%`}
                     </Badge>
                   }

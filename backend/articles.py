@@ -80,6 +80,11 @@ async def list_articles(scope: str = "all", tag: str = "", ticker: str = "", q: 
         if not user:
             raise HTTPException(status_code=401, detail="Sign in to see your notes")
         flt = {"author_id": user["id"]}
+    elif scope == "saved":
+        if not user:
+            raise HTTPException(status_code=401, detail="Sign in to see saved articles")
+        ids = [ObjectId(b["article_id"]) for b in await db.bookmarks.find({"user_id": user["id"]}).to_list(1000)]
+        flt = {"$and": [_visible_filter(user), {"_id": {"$in": ids}}]}
     if tag:
         flt = {"$and": [flt, {"tags": tag.lower()}]}
     if ticker:
@@ -89,10 +94,19 @@ async def list_articles(scope: str = "all", tag: str = "", ticker: str = "", q: 
     docs = await db.articles.find(flt, {"body_md": 1, "title": 1, "summary": 1, "tags": 1, "tickers": 1, "cover_url": 1,
                                         "visibility": 1, "author_id": 1, "author_name": 1, "created_at": 1, "updated_at": 1}) \
         .sort("created_at", -1).to_list(300)
+    saved = set()
+    if user:
+        saved = {b["article_id"] for b in await db.bookmarks.find({"user_id": user["id"]}, {"article_id": 1}).to_list(1000)}
+    ids = [str(d["_id"]) for d in docs]
+    counts = {}
+    async for row in db.comments.aggregate([{"$match": {"article_id": {"$in": ids}}}, {"$group": {"_id": "$article_id", "n": {"$sum": 1}}}]):
+        counts[row["_id"]] = row["n"]
     items = []
     for d in docs:
         a = _out(d, user)
         a["body_md"] = a["body_md"][:280]
+        a["bookmarked"] = a["id"] in saved
+        a["comment_count"] = counts.get(a["id"], 0)
         items.append(a)
     return {"articles": items}
 
@@ -118,6 +132,7 @@ async def get_article(article_id: str, user: Optional[dict] = Depends(optional_u
     if doc["visibility"] != "public" and (not user or doc["author_id"] != user["id"]):
         raise HTTPException(status_code=403, detail="This note is private")
     a = _out(doc, user)
+    a["bookmarked"] = bool(user) and await db.bookmarks.find_one({"user_id": user["id"], "article_id": article_id}) is not None
     await ensure_fresh()
     a["ticker_quotes"] = []
     for s in a.get("tickers", []):
@@ -219,3 +234,71 @@ async def ai_draft(payload: DraftInput, user: dict = Depends(get_current_user)):
     if md.startswith("```"):
         md = md.strip("`").lstrip("markdown").strip()
     return {"body_md": md, "provider": provider, "model": model, "tickers": [symbol] if symbol and symbol in UNIVERSE else []}
+
+
+# ---------------- Comments ----------------
+class CommentInput(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+
+
+async def _visible_article(article_id: str, user: Optional[dict]) -> dict:
+    try:
+        doc = await db.articles.find_one({"_id": ObjectId(article_id)})
+    except Exception:
+        doc = None
+    if not doc:
+        raise HTTPException(status_code=404, detail="Article not found")
+    if doc["visibility"] != "public" and (not user or doc["author_id"] != user["id"]):
+        raise HTTPException(status_code=403, detail="This note is private")
+    return doc
+
+
+def _comment_out(c: dict, user: Optional[dict]) -> dict:
+    o = serialize(c)
+    o["can_delete"] = bool(user) and (o["user_id"] == user["id"] or user.get("role") == "admin")
+    return o
+
+
+@router.get("/{article_id}/comments")
+async def list_comments(article_id: str, user: Optional[dict] = Depends(optional_user)):
+    await _visible_article(article_id, user)
+    docs = await db.comments.find({"article_id": article_id}).sort("created_at", 1).to_list(500)
+    return {"comments": [_comment_out(c, user) for c in docs]}
+
+
+@router.post("/{article_id}/comments")
+async def add_comment(article_id: str, payload: CommentInput, user: dict = Depends(get_current_user)):
+    doc = await _visible_article(article_id, user)
+    if doc["visibility"] != "public":
+        raise HTTPException(status_code=400, detail="Comments are only available on published articles")
+    c = {"article_id": article_id, "user_id": user["id"], "user_name": user.get("name", "Reader"), "body": payload.body.strip(), "created_at": _now()}
+    res = await db.comments.insert_one(c)
+    return _comment_out({**c, "_id": res.inserted_id}, user)
+
+
+@router.delete("/{article_id}/comments/{comment_id}")
+async def delete_comment(article_id: str, comment_id: str, user: dict = Depends(get_current_user)):
+    c = await db.comments.find_one({"_id": ObjectId(comment_id), "article_id": article_id})
+    if not c:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if c["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="You can only delete your own comments")
+    await db.comments.delete_one({"_id": c["_id"]})
+    return {"deleted": True}
+
+
+# ---------------- Bookmarks ----------------
+@router.post("/{article_id}/bookmark")
+async def add_bookmark(article_id: str, user: dict = Depends(get_current_user)):
+    await _visible_article(article_id, user)
+    await db.bookmarks.update_one(
+        {"user_id": user["id"], "article_id": article_id},
+        {"$setOnInsert": {"user_id": user["id"], "article_id": article_id, "created_at": _now()}}, upsert=True,
+    )
+    return {"bookmarked": True}
+
+
+@router.delete("/{article_id}/bookmark")
+async def remove_bookmark(article_id: str, user: dict = Depends(get_current_user)):
+    await db.bookmarks.delete_one({"user_id": user["id"], "article_id": article_id})
+    return {"bookmarked": False}

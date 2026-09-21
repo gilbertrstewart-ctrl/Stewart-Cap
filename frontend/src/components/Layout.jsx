@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet } from "react-router-dom";
 import TickerTape from "@/components/TickerTape";
 import Navbar from "@/components/Navbar";
+import MarketOverview from "@/components/MarketOverview";
 import AuthModal from "@/components/AuthModal";
 
 export default function Layout() {
@@ -9,6 +10,7 @@ export default function Layout() {
     <div className="min-h-screen bg-background text-foreground">
       <TickerTape />
       <Navbar />
+      <MarketOverview />
       <main className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Outlet />
       </main>

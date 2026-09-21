@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 from bson import ObjectId
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field
 from db import db, serialize
 from auth import get_current_user
 from market_data import quote, UNIVERSE, ensure_fresh, register_symbol, movers
-from emails import send_price_alert_email, send_digest_email
+from emails import send_price_alert_email, send_digest_email, send_newsletter_email
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["alerts"])
@@ -161,5 +162,63 @@ async def alerts_worker():
             await ensure_fresh()
             await check_price_alerts()
             await run_scheduled_digests()
+            await run_scheduled_newsletter()
         except Exception as e:
             logger.warning(f"alerts_worker error: {e}")
+
+
+# ---------------- Weekly newsletter (Fridays) ----------------
+NEWSLETTER_WEEKDAY = 4  # Friday
+APP_URL = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+
+
+async def _recent_articles(days: int = 7) -> list:
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    docs = await db.articles.find({"visibility": "public", "created_at": {"$gte": since}}).sort("created_at", -1).to_list(20)
+    return [serialize(d) for d in docs]
+
+
+@router.get("/newsletter/preview")
+async def newsletter_preview(user: dict = Depends(get_current_user)):
+    arts = await _recent_articles()
+    subs = await db.users.count_documents({"digest_enabled": True})
+    return {"articles": [{k: a.get(k) for k in ("id", "title", "summary", "author_name", "tickers", "created_at")} for a in arts],
+            "subscribers": subs, "sends_on": "Friday 08:00 America/Toronto"}
+
+
+@router.post("/newsletter/send")
+async def newsletter_send_now(user: dict = Depends(get_current_user)):
+    """Admin: send this week's newsletter to all digest subscribers now. Non-admin: send a copy to yourself."""
+    arts = await _recent_articles()
+    if not arts:
+        raise HTTPException(status_code=400, detail="No articles were published in the last 7 days")
+    targets = await db.users.find({"digest_enabled": True}).to_list(5000) if user.get("role") == "admin" else [await db.users.find_one({"_id": ObjectId(user["id"])})]
+    sent, failed = 0, 0
+    for u in targets:
+        try:
+            await send_newsletter_email(to=u["email"], name=u.get("name", ""), articles=arts, base_url=APP_URL)
+            await db.users.update_one({"_id": u["_id"]}, {"$set": {"newsletter_last_sent": datetime.now(timezone.utc).isoformat()}})
+            sent += 1
+        except Exception as e:
+            failed += 1
+            logger.warning(f"Newsletter failed for {u.get('email')}: {e}")
+    return {"sent": sent, "failed": failed, "articles": len(arts)}
+
+
+async def run_scheduled_newsletter():
+    now_local = datetime.now(DIGEST_TZ)
+    if now_local.weekday() != NEWSLETTER_WEEKDAY or now_local.hour < DIGEST_HOUR:
+        return
+    arts = await _recent_articles()
+    if not arts:
+        return
+    today = now_local.date().isoformat()
+    for u in await db.users.find({"digest_enabled": True}).to_list(5000):
+        last = u.get("newsletter_last_sent")
+        if last and datetime.fromisoformat(last).astimezone(DIGEST_TZ).date().isoformat() == today:
+            continue
+        try:
+            await send_newsletter_email(to=u["email"], name=u.get("name", ""), articles=arts, base_url=APP_URL)
+            await db.users.update_one({"_id": u["_id"]}, {"$set": {"newsletter_last_sent": datetime.now(timezone.utc).isoformat()}})
+        except Exception as e:
+            logger.warning(f"Newsletter failed for {u.get('email')}: {e}")

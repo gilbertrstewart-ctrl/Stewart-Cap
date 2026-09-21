@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from db import db
 from auth import get_current_user
-from market_data import quote, UNIVERSE, ensure_fresh, register_symbol
+from market_data import quote, UNIVERSE, ensure_fresh, register_symbol, history
 from recommendations import fetch_consensus
 import asyncio
 
@@ -100,6 +100,35 @@ async def get_portfolio(user: dict = Depends(get_current_user)):
             "day_change_percent": round(day_change / (total_value - day_change) * 100, 2) if (total_value - day_change) else 0,
         },
     }
+
+
+@router.get("/portfolio/history")
+async def portfolio_history(range: str = "1M", user: dict = Depends(get_current_user)):
+    """Total portfolio value over time = sum(shares x daily close), forward-filled."""
+    holdings = [h for h in await db.holdings.find({"user_id": user["id"]}).to_list(500) if h["symbol"] in UNIVERSE]
+    if not holdings:
+        return {"range": range, "points": []}
+    shares = {}
+    for h in holdings:
+        shares[h["symbol"]] = shares.get(h["symbol"], 0) + h["shares"]
+    series = await asyncio.gather(*[history(s, range) for s in shares])
+    by_day = {}
+    for sym, pts in zip(shares, series):
+        by_day[sym] = {p["t"][:16 if range in ("1D", "1W") else 10]: p["price"] for p in pts}
+    keys = sorted(set().union(*[set(d) for d in by_day.values()]))
+    last = {}
+    points = []
+    for k in keys:
+        total = 0.0
+        for sym, d in by_day.items():
+            if k in d:
+                last[sym] = d[k]
+            if sym in last:
+                total += last[sym] * shares[sym]
+        if len(last) == len(shares):
+            points.append({"t": k, "value": round(total, 2)})
+    cost = sum(h["avg_price"] * h["shares"] for h in holdings)
+    return {"range": range, "points": points, "invested": round(cost, 2)}
 
 
 @router.post("/portfolio")

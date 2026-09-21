@@ -3,6 +3,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useModals } from "@/context/ModalContext";
 import AddHoldingDialog from "@/components/AddHoldingDialog";
+import PortfolioChart from "@/components/PortfolioChart";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, TrendingUp, Wallet, LineChart, Layers, Trash2, Sparkles, ArrowUpRight, Loader2 } from "lucide-react";
@@ -71,6 +72,9 @@ export default function Dashboard() {
               value={fmtSigned(s.day_change)} sub={fmtPct(s.day_change_percent)} tone={s.day_change} />
             <StatCard testid="stat-invested" icon={Layers} label="Invested" value={fmtCurrency(s.total_cost)} />
           </div>
+
+          <PortfolioChart refreshKey={holdings.map((h) => h.id).join(",")} />
+
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden">

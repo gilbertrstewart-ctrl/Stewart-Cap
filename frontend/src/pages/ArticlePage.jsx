@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import MarkdownView from "@/components/MarkdownView";
 import ArticleEditor from "@/components/ArticleEditor";
-import { ArrowLeft, Pencil, Trash2, Lock, Globe, Clock, Loader2 } from "lucide-react";
+import Comments from "@/components/Comments";
+import { ArrowLeft, Pencil, Trash2, Lock, Globe, Clock, Loader2, Bookmark, BookmarkCheck } from "lucide-react";
 import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
 import { toast } from "sonner";
 
@@ -36,6 +37,18 @@ export default function ArticlePage() {
     }
   };
 
+  const toggleBookmark = async () => {
+    if (!user) return toast.error("Sign in to save articles");
+    try {
+      if (article.bookmarked) await api.delete(`/articles/${id}/bookmark`);
+      else await api.post(`/articles/${id}/bookmark`);
+      setArticle((a) => ({ ...a, bookmarked: !a.bookmarked }));
+      toast.success(article.bookmarked ? "Removed from reading list" : "Saved to reading list");
+    } catch {
+      toast.error("Could not update bookmark");
+    }
+  };
+
   if (error) return <div className="py-20 text-center text-muted-foreground" data-testid="article-error">{error}</div>;
   if (!article) return <div className="h-64 grid place-items-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
@@ -59,12 +72,17 @@ export default function ArticlePage() {
         {article.summary && <p className="text-muted-foreground text-lg">{article.summary}</p>}
         <div className="flex items-center justify-between gap-3 flex-wrap text-sm text-muted-foreground">
           <span className="font-num">By {article.author_name} · {new Date(article.created_at).toLocaleDateString()} · <Clock className="w-3.5 h-3.5 inline -mt-0.5" /> {article.reading_minutes} min read</span>
-          {article.can_edit && (
-            <div className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setEditing(true)} data-testid="article-edit-btn"><Pencil className="w-4 h-4 mr-1.5" /> Edit</Button>
-              <Button size="sm" variant="ghost" onClick={remove} data-testid="article-delete-btn" className="text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4 mr-1.5" /> Delete</Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <Button size="sm" variant={article.bookmarked ? "default" : "secondary"} onClick={toggleBookmark} data-testid="article-bookmark-btn">
+              {article.bookmarked ? <BookmarkCheck className="w-4 h-4 mr-1.5" /> : <Bookmark className="w-4 h-4 mr-1.5" />} {article.bookmarked ? "Saved" : "Save"}
+            </Button>
+            {article.can_edit && (
+              <>
+                <Button size="sm" variant="secondary" onClick={() => setEditing(true)} data-testid="article-edit-btn"><Pencil className="w-4 h-4 mr-1.5" /> Edit</Button>
+                <Button size="sm" variant="ghost" onClick={remove} data-testid="article-delete-btn" className="text-red-600 hover:text-red-700"><Trash2 className="w-4 h-4 mr-1.5" /> Delete</Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -82,6 +100,9 @@ export default function ArticlePage() {
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
         <MarkdownView source={article.body_md} />
       </div>
+
+      {article.visibility === "public" && <Comments articleId={id} />}
+
 
       <ArticleEditor open={editing} onOpenChange={setEditing} article={article} onSaved={(a) => { setEditing(false); setArticle({ ...article, ...a }); load(); }} />
     </article>

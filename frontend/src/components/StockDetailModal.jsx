@@ -146,7 +146,7 @@ export default function StockDetailModal({ symbol, onClose }) {
             </div>
 
             {quote.near_high && (
-              <div data-testid="detail-nearhigh-alert" className="flex items-center gap-2 rounded-lg bg-blue-600/10 text-blue-700 px-3 py-2 text-sm">
+              <div data-testid="detail-nearhigh-alert" className="flex items-center gap-2 rounded-lg bg-green-600/10 text-green-700 px-3 py-2 text-sm">
                 <Bell className="w-4 h-4" />
                 {quote.at_high ? "Trading at its 52-week high" : `Only ${quote.pct_from_high}% below its 52-week high`}
               </div>

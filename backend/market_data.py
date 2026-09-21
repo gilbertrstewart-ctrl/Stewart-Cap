@@ -390,3 +390,41 @@ async def get_news(symbol: str):
         items = []
     _news_cache[symbol] = (now, items, 300 if items else 30)
     return {"symbol": symbol, "news": items}
+
+
+# ---------------- Market overview (indices, crude, bitcoin, CAD/USD) ----------------
+_OVERVIEW = [
+    ("^GSPTSE", "TSX Composite", "index", "CAD"),
+    ("^IXIC", "NASDAQ", "index", "USD"),
+    ("^GSPC", "S&P 500", "index", "USD"),
+    ("^DJI", "Dow Jones", "index", "USD"),
+    ("CL=F", "Crude Oil (WTI)", "commodity", "USD"),
+    ("BTC-USD", "Bitcoin", "crypto", "USD"),
+    ("CADUSD=X", "CAD → USD", "fx", "USD"),
+]
+_overview_cache = {"at": 0.0, "data": []}
+
+
+@router.get("/overview")
+async def market_overview():
+    now = time.time()
+    if now - _overview_cache["at"] < 60 and _overview_cache["data"]:
+        return {"items": _overview_cache["data"], "updated_at": datetime.now(timezone.utc).isoformat()}
+    async with httpx.AsyncClient(timeout=8, headers={"User-Agent": "Mozilla/5.0"}) as client:
+        results = await asyncio.gather(*[_fetch_yahoo(s, client) for s, *_ in _OVERVIEW], return_exceptions=True)
+    items = []
+    for (sym, name, kind, cur), res in zip(_OVERVIEW, results):
+        if not isinstance(res, dict):
+            continue
+        price, prev = res["price"], res["prev_close"]
+        if kind == "fx":
+            price, prev = round(float(res["_meta"].get("regularMarketPrice")), 4), round(float(res["_meta"].get("chartPreviousClose")), 4)
+        items.append({
+            "symbol": sym, "name": name, "kind": kind, "currency": cur, "price": price, "prev_close": prev,
+            "change": round(price - prev, 4 if kind == "fx" else 2),
+            "change_percent": round((price - prev) / prev * 100, 2) if prev else 0,
+            "as_of": datetime.fromtimestamp(res["as_of"], tz=timezone.utc).isoformat() if res.get("as_of") else None,
+        })
+    if items:
+        _overview_cache.update(at=now, data=items)
+    return {"items": items, "updated_at": datetime.now(timezone.utc).isoformat()}

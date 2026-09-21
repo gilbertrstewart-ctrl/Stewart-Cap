@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ArticleEditor from "@/components/ArticleEditor";
-import { Newspaper, Plus, Search, Lock, Globe, Clock, Loader2 } from "lucide-react";
+import NewsletterCard from "@/components/NewsletterCard";
+import { Newspaper, Plus, Search, Lock, Globe, Clock, Loader2, MessageSquare, BookmarkCheck } from "lucide-react";
 
-const SCOPES = [["all", "All"], ["public", "Published"], ["mine", "My notes"]];
+const SCOPES = [["all", "All"], ["public", "Published"], ["mine", "My notes"], ["saved", "Saved"]];
 
 export default function ArticlesPage() {
   const { user, openAuth } = useAuth();
@@ -26,7 +27,7 @@ export default function ArticlesPage() {
   };
 
   useEffect(() => {
-    if (scope === "mine" && !user) { setScope("all"); return; }
+    if ((scope === "mine" || scope === "saved") && !user) { setScope("all"); return; }
     const t = setTimeout(load, q ? 250 : 0);
     return () => clearTimeout(t);
   }, [scope, tag, q, user]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -46,7 +47,7 @@ export default function ArticlesPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
           {SCOPES.map(([k, l]) => (
-            <button key={k} data-testid={`articles-scope-${k}`} onClick={() => setScope(k)} disabled={k === "mine" && !user} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-40 ${scope === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>{l}</button>
+            <button key={k} data-testid={`articles-scope-${k}`} onClick={() => setScope(k)} disabled={(k === "mine" || k === "saved") && !user} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-40 ${scope === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>{l}</button>
           ))}
         </div>
         <div className="relative flex-1 min-w-[220px] max-w-sm">
@@ -62,13 +63,15 @@ export default function ArticlesPage() {
         )}
       </div>
 
+      <NewsletterCard />
+
       {articles === null ? (
         <div className="h-64 grid place-items-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       ) : articles.length === 0 ? (
         <div data-testid="articles-empty" className="rounded-xl border border-dashed border-border py-16 grid place-items-center text-center">
           <Newspaper className="w-10 h-10 text-muted-foreground mb-3" />
           <h3 className="font-heading font-semibold text-lg">No articles yet</h3>
-          <p className="text-muted-foreground text-sm mb-4">{scope === "mine" ? "Your private notes will show up here." : "Be the first to write one."}</p>
+          <p className="text-muted-foreground text-sm mb-4">{scope === "mine" ? "Your private notes will show up here." : scope === "saved" ? "Articles you save will show up here." : "Be the first to write one."}</p>
           <Button onClick={startWriting} data-testid="empty-new-article-btn"><Plus className="w-4 h-4 mr-2" /> Start writing</Button>
         </div>
       ) : (
@@ -95,8 +98,10 @@ export default function ArticlesPage() {
                 </div>
                 <h3 className={`font-heading font-bold leading-snug group-hover:text-primary transition-colors ${i === 0 ? "text-2xl" : "text-lg"}`}>{a.title}</h3>
                 <p className="text-sm text-muted-foreground line-clamp-2">{a.summary || a.body_md.replace(/[#*_>`-]/g, "").slice(0, 160)}</p>
-                <div className="text-[11px] text-muted-foreground font-num pt-1 flex items-center gap-1.5">
+                <div className="text-[11px] text-muted-foreground font-num pt-1 flex items-center gap-1.5 flex-wrap">
                   {a.author_name} · {new Date(a.created_at).toLocaleDateString()} · <Clock className="w-3 h-3" /> {a.reading_minutes} min
+                  {a.visibility === "public" && <span className="inline-flex items-center gap-0.5" data-testid={`card-comments-${a.id}`}>· <MessageSquare className="w-3 h-3" /> {a.comment_count}</span>}
+                  {a.bookmarked && <span className="inline-flex items-center gap-0.5 text-primary" data-testid={`card-saved-${a.id}`}>· <BookmarkCheck className="w-3 h-3" /> Saved</span>}
                   {a.tags.slice(0, 3).map((t) => <span key={t} className="ml-1">#{t}</span>)}
                 </div>
               </div>

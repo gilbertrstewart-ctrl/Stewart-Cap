@@ -240,3 +240,24 @@ async def send_digest_email(*, to: str, name: str, digest: dict) -> str | None:
         + _table("Market-wide dramatic movers (&plusmn;10%+)", big_rows)
     )
     return await send_email(to=to, subject="Your STEWART CAP morning digest", html=_SHELL.format(body=body))
+
+
+async def send_newsletter_email(*, to: str, name: str, articles: list, base_url: str) -> str | None:
+    cards = ""
+    for a in articles:
+        tickers = " &middot; ".join(escape(t) for t in a.get("tickers", [])[:3])
+        summary = escape(a.get("summary") or "")
+        cards += (
+            "<tr><td style='padding:14px 0;border-bottom:1px solid #263041'>"
+            f"<a href='{base_url}/articles/{a['id']}' style='color:#fff;font-size:17px;font-weight:bold;text-decoration:none'>{escape(a['title'])}</a>"
+            + (f"<div style='color:#cbd5e1;font-size:14px;margin-top:4px'>{summary}</div>" if summary else "")
+            + f"<div style='color:#94a3b8;font-size:12px;margin-top:6px'>By {escape(a.get('author_name', ''))}"
+            + (f" &middot; {tickers}" if tickers else "") + "</div></td></tr>"
+        )
+    body = (
+        f"<p style='margin:0 0 6px'>Hi {escape(name or 'there')},</p>"
+        f"<p style='margin:0 0 10px;color:#94a3b8;font-size:13px'>New from STEWART CAP research this week &mdash; {len(articles)} article{'s' if len(articles) != 1 else ''}.</p>"
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>" + cards + "</table>"
+        f"<p style='margin:18px 0 0;font-size:13px'><a href='{base_url}/articles' style='color:#93c5fd'>Read all articles</a></p>"
+    )
+    return await send_email(to=to, subject="STEWART CAP weekly: new research articles", html=_SHELL.format(body=body))

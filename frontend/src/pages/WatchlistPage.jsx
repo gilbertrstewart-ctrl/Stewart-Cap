@@ -158,7 +158,7 @@ export default function WatchlistPage() {
                 </div>
 
                 {q.near_high && (
-                  <span data-testid={`watch-nearhigh-${q.symbol}`} className="hidden lg:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-blue-600/15 text-blue-700 shrink-0">
+                  <span data-testid={`watch-nearhigh-${q.symbol}`} className="hidden lg:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-green-600/15 text-green-700 shrink-0">
                     <Bell className="w-3 h-3" /> {q.at_high ? "At 52W high" : `${q.pct_from_high}% from high`}
                   </span>
                 )}
