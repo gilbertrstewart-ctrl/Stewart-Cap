@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 4 (dynamic Yahoo-backed symbol search + red/white/blue light theme) fully verified. Backend: 24/24 pytest pass, including 7 new tests: /api/market/search returns CNQ.TO for q=CNQ, IBM for q=IBM, empty results for q=ZZZZQQ; POST /api/watchlist auto-registers non-curated tickers (ENB with 52w high/low), uppercases lowercase ('ibm'->'IBM'), returns 400 with detail containing 'Could not find ticker' for NOTREAL123; GET /api/market/quote/CNQ.TO returns live source with valid price; /api/market/news/CNQ.TO and /api/market/history/CNQ.TO?range=1M work; POST /api/portfolio with CNQ.TO succeeds. Regression endpoints (ticker/movers/quote/AAPL/brokers/auth/news) still pass. Frontend E2E: on /watchlist logged in as admin, add-watchlist-btn opened dialog; typing 'RY' with debounce showed results, clicking symbol-option-RY.TO added watch-row-RY.TO with a success toast; typing 'CP.TO' + Enter added watch-row-CP.TO; typing 'ZZZZQQ' showed symbol-add-typed button which triggered error toast 'Could not find ticker ZZZZQQ. Try e.g. AAPL or TD.TO' (backend 400 confirmed in console). Cleanup via watch-remove-RY.TO and watch-remove-CP.TO worked. Theme regression: body background rgb(224,240,255) light-blue, LIVE badge red bg rgb(220,38,38) with white text on navy ticker tape; positive % blue, negative % red visible in the top ticker; /, /watchlist, /movers, /brokers render with light theme and no console errors (only pre-existing Radix a11y Description warnings from iteration_3). Theme toggle switches html.className to 'dark' and back to '' (light) correctly.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialogs (add-watchlist, others)", "issues": ["Pre-existing Radix warning: 'Missing Description or aria-describedby for DialogContent' still fires when opening the add-stock dialog. Not new to this iteration — carried over from iteration_3."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Low, carry-over) Add DialogDescription (or aria-describedby with VisuallyHidden) to the SymbolSearch/add-stock DialogContent and StockDetailModal/AiAnalysisModal to silence Radix a11y warnings."
+  ],
+  "critical_code_review_comments": [
+    "market_data.register_symbol persists to Mongo 'symbols' and load_saved_symbols reloads at startup — good. Consider TTL/refresh so stale names/exchanges get refreshed periodically.",
+    "yahoo_search fallback is called on every empty curated result — fine, but a small in-memory LRU (e.g., 60s) around search queries would reduce Yahoo rate-limit exposure for popular typed prefixes.",
+    "user_data.add_watchlist/add_holding now attempt Yahoo auto-register on unknown symbol before 400 — verify that HTTPException(status_code=400, detail='Could not find ticker ...') text is stable; frontend toast keys off substring match.",
+    "SymbolSearch debounce + Enter-to-add + 'Add TYPED anyway' UX is working; ensure the typed-anyway path always surfaces the backend error via toast (verified in this run).",
+    "Theme: index.css light-mode background is rgb(224,240,255) with white cards; ticker tape navy with red LIVE badge — matches spec. Trend colors: gains blue, losses red via utils/format.js trendColor — verified in ticker tape output."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@apexticker.com / admin123 used for both backend and FE tests.",
+  "seed_data_creation": "Backend tests transiently create/delete ENB, IBM, MSFT, NVDA, CNQ.TO watchlist/portfolio entries — all cleaned up. FE test transiently added RY.TO and CP.TO to admin's watchlist and removed them via watch-remove buttons. NVDA and CNQ.TO seeded from earlier iterations remain on admin's watchlist (harmless).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Dynamic symbol pipeline: GET /api/market/search?q=... first checks curated list, then falls back to Yahoo (yahoo_search) and dynamically registers new symbols to Mongo 'symbols'. POST /api/watchlist and /api/portfolio auto-register unknown tickers; both return 400 with detail 'Could not find ticker <SYMBOL>' for unresolvable inputs. Frontend SymbolSearch is debounced (~800ms), shows spinner, supports Enter-to-add-first-result, and shows a 'symbol-add-typed' fallback button when Yahoo returns nothing. Theme is red/white/blue LIGHT by default: gains blue (trendColor), losses red; ticker-tape navy with red LIVE. data-testids: add-watchlist-btn, empty-add-watchlist-btn, symbol-search-input, symbol-option-{SYMBOL}, symbol-add-typed, watch-row-{SYMBOL}, watch-remove-{SYMBOL}, theme-toggle, prompt-signin-btn, nav-login-btn. Do NOT trigger AI analysis or /api/ai/email in future runs (credit cost).",
+  "rca of the issue": "N/A — feature works as specified; only carry-over Radix DialogDescription a11y warnings remain."
+}

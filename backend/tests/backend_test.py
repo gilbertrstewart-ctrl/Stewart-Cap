@@ -304,3 +304,102 @@ def test_news_tsx(s, sym):
 def test_news_unknown(s):
     r = s.get(f"{BASE_URL}/api/market/news/ZZZZZ", timeout=15)
     assert r.status_code == 404
+
+
+# ---- Dynamic Symbol Search (iteration 4) ----
+def test_search_cnq_returns_us_and_tsx(s):
+    r = s.get(f"{BASE_URL}/api/market/search?q=CNQ", timeout=45)
+    assert r.status_code == 200
+    res = r.json()["results"]
+    syms = {x["symbol"] for x in res}
+    # CNQ.TO must appear; CNQ (NYSE) may appear as well
+    assert "CNQ.TO" in syms or "CNQ" in syms, f"expected CNQ or CNQ.TO in {syms}"
+    # numeric prices where present
+    for x in res:
+        if x.get("price") is not None:
+            assert isinstance(x["price"], (int, float))
+
+
+def test_search_ibm(s):
+    r = s.get(f"{BASE_URL}/api/market/search?q=IBM", timeout=45)
+    assert r.status_code == 200
+    syms = {x["symbol"] for x in r.json()["results"]}
+    assert "IBM" in syms
+
+
+def test_search_garbage_empty(s):
+    r = s.get(f"{BASE_URL}/api/market/search?q=ZZZZQQ", timeout=30)
+    assert r.status_code == 200
+    assert r.json()["results"] == []
+
+
+def test_watchlist_dynamic_add_and_cleanup(s, admin_token):
+    h = {"Authorization": f"Bearer {admin_token}"}
+    # Clean pre-existing (best-effort)
+    for sym in ("ENB", "IBM"):
+        s.delete(f"{BASE_URL}/api/watchlist/{sym}", headers=h, timeout=15)
+
+    # ENB is not in the curated list — should auto-register via Yahoo
+    r = s.post(f"{BASE_URL}/api/watchlist", json={"symbol": "ENB"}, headers=h, timeout=45)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert "ENB" in d["symbols"]
+    enb_q = next((q for q in d["quotes"] if q["symbol"] == "ENB"), None)
+    assert enb_q is not None
+    assert enb_q.get("price", 0) > 0
+    assert "high_52" in enb_q and "low_52" in enb_q
+
+    # Bad symbol -> 400 with clear message
+    r = s.post(f"{BASE_URL}/api/watchlist", json={"symbol": "NOTREAL123"}, headers=h, timeout=30)
+    assert r.status_code == 400
+    detail = r.json().get("detail", "")
+    assert "Could not find ticker" in detail, f"unexpected detail: {detail}"
+
+    # lowercase should be uppercased
+    r = s.post(f"{BASE_URL}/api/watchlist", json={"symbol": "ibm"}, headers=h, timeout=45)
+    assert r.status_code == 200, r.text
+    assert "IBM" in r.json()["symbols"]
+
+    # Cleanup
+    for sym in ("ENB", "IBM"):
+        r = s.delete(f"{BASE_URL}/api/watchlist/{sym}", headers=h, timeout=15)
+        assert r.status_code == 200
+        assert sym not in r.json()["symbols"]
+
+
+def test_cnq_to_quote_history_news(s):
+    r = s.get(f"{BASE_URL}/api/market/quote/CNQ.TO", timeout=45)
+    assert r.status_code == 200, r.text
+    q = r.json()
+    assert q["symbol"] == "CNQ.TO"
+    assert q["price"] > 0
+    assert q.get("source") in ("live", "alpha_vantage", "simulated")
+
+    r = s.get(f"{BASE_URL}/api/market/news/CNQ.TO", timeout=30)
+    assert r.status_code == 200
+    assert isinstance(r.json()["news"], list)
+
+    r = s.get(f"{BASE_URL}/api/market/history/CNQ.TO?range=1M", timeout=45)
+    assert r.status_code == 200
+    h = r.json()
+    assert h["symbol"] == "CNQ.TO"
+    assert len(h["points"]) > 3
+
+
+def test_portfolio_dynamic_symbol(s, admin_token):
+    h = {"Authorization": f"Bearer {admin_token}"}
+    r = s.post(f"{BASE_URL}/api/portfolio",
+               json={"symbol": "CNQ.TO", "shares": 1, "avg_price": 60.0},
+               headers=h, timeout=45)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    hold = next((x for x in d["holdings"] if x["symbol"] == "CNQ.TO"), None)
+    assert hold is not None
+    holding_id = hold["id"]
+
+    r = s.get(f"{BASE_URL}/api/portfolio", headers=h, timeout=30)
+    assert r.status_code == 200
+    assert any(x["id"] == holding_id for x in r.json()["holdings"])
+
+    r = s.delete(f"{BASE_URL}/api/portfolio/{holding_id}", headers=h, timeout=15)
+    assert r.status_code == 200
