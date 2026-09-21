@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 from db import db
 from auth import get_current_user
 from market_data import quote, UNIVERSE, ensure_fresh, register_symbol
+from recommendations import fetch_consensus
+import asyncio
 
 router = APIRouter(prefix="/api", tags=["user-data"])
 
@@ -21,10 +23,11 @@ async def get_watchlist(user: dict = Depends(get_current_user)):
     await ensure_fresh()
     doc = await db.watchlists.find_one({"user_id": user["id"]})
     symbols = doc["symbols"] if doc else []
+    valid = [s for s in symbols if s in UNIVERSE]
+    cons = await asyncio.gather(*[fetch_consensus(s) for s in valid], return_exceptions=True)
     quotes = []
-    for s in symbols:
-        if s in UNIVERSE:
-            quotes.append(quote(s))
+    for s, c in zip(valid, cons):
+        quotes.append({**quote(s), "consensus_key": c.get("rating_key") if isinstance(c, dict) else None})
     return {"symbols": symbols, "quotes": quotes}
 
 

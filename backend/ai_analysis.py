@@ -123,6 +123,77 @@ async def analyze(payload: AnalyzeInput):
     return await run_analysis(payload.symbol, payload.provider, payload.model)
 
 
+RATING_SYSTEM = (
+    "You are a disciplined, independent equity research analyst. Given a stock's fundamentals, price position "
+    "and Wall Street consensus, produce a clear Buy / Hold / Sell recommendation with a balanced bull and bear case. "
+    "You do NOT have live news; base your view on valuation, momentum, 52-week positioning, dividend and consensus data. "
+    "Always respond with STRICT JSON only, no markdown."
+)
+
+
+async def run_rating(symbol: str, provider: str = "openai", model: str = None) -> dict:
+    from recommendations import fetch_consensus
+
+    q = quote(symbol)
+    provider = provider if provider in DEFAULT_MODELS else "openai"
+    model = model or DEFAULT_MODELS[provider]
+    day_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_id = f"rating:{symbol}:{provider}:{model}:{day_key}"
+    cached = await db.ai_analysis.find_one({"_id": cache_id})
+    if cached:
+        return cached["data"]
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="AI rating is not configured")
+
+    cons = await fetch_consensus(symbol) or {}
+    cons_txt = (
+        f"Analyst consensus: {cons.get('rating_key')} (mean {cons.get('rating_mean')}, {cons.get('analysts')} analysts), "
+        f"mean target {cons.get('target_mean')} (upside {cons.get('upside_pct')}%), "
+        f"breakdown {cons.get('trend')}"
+        if cons else "Analyst consensus: not available"
+    )
+    prompt = f"""Rate this stock and return STRICT JSON.
+
+Stock: {q['name']} ({q['symbol']}) on {q['exchange']}, sector {q['sector']}
+Price: {q['price']} (day change {q['change_percent']}%)
+52-week high {q['high_52']} ({q['pct_from_high']}% below), 52-week low {q['low_52']} ({q['pct_from_low']}% above)
+P/E: {q['pe'] or 'n/a'}, Market cap: {q['market_cap'] or 'n/a'}B, Dividend yield: {q['dividend_yield'] or 0}%
+{cons_txt}
+
+Return JSON with EXACTLY these keys:
+{{
+  "rating": "Buy|Hold|Sell",
+  "confidence": <integer 0-100>,
+  "horizon": "e.g. 6-12 months",
+  "thesis": "2-3 sentence core thesis",
+  "bull_case": ["short bullet", "short bullet", "short bullet"],
+  "bear_case": ["short bullet", "short bullet", "short bullet"],
+  "what_to_watch": ["short bullet", "short bullet"],
+  "disclaimer": "AI-generated opinion for information only, not financial advice."
+}}"""
+
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"rating-{symbol}-{provider}", system_message=RATING_SYSTEM).with_model(provider, model)
+    try:
+        raw = await chat.send_message(UserMessage(text=prompt))
+        rating = _extract_json(raw)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI rating failed: {str(e)}")
+    if rating.get("rating") not in ("Buy", "Hold", "Sell"):
+        rating["rating"] = "Hold"
+
+    result = {
+        "symbol": q["symbol"], "name": q["name"], "price": q["price"], "provider": provider, "model": model,
+        "generated_at": datetime.now(timezone.utc).isoformat(), "rating": rating, "consensus": cons or None,
+    }
+    await db.ai_analysis.update_one({"_id": cache_id}, {"$set": {"data": result}}, upsert=True)
+    return result
+
+
+@router.post("/rating")
+async def ai_rating(payload: AnalyzeInput):
+    return await run_rating(payload.symbol, payload.provider, payload.model)
+
+
 @router.post("/email")
 async def email_analysis(payload: EmailAnalysisInput, user: dict = Depends(get_current_user)):
     result = await run_analysis(payload.symbol, payload.provider, payload.model)

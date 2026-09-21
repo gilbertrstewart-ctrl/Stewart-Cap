@@ -4,7 +4,8 @@ import { useModals } from "@/context/ModalContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, TrendingUp, TrendingDown, Bell, Newspaper, ExternalLink } from "lucide-react";
+import { Sparkles, Loader2, TrendingUp, TrendingDown, Bell, Newspaper, ExternalLink, Target } from "lucide-react";
+import { AnalystConsensus, AiRating } from "@/components/Recommendation";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { fmtPrice, fmtPct, fmtMarketCap, fmtVolume, trendColor, trendHex } from "@/utils/format";
 
@@ -168,6 +169,20 @@ export default function StockDetailModal({ symbol, onClose }) {
                   <div className="font-num font-semibold text-sm mt-0.5">{v}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Recommendation */}
+            <div data-testid="recommendation-section" className="rounded-xl border border-border bg-secondary/30 p-4 space-y-4 mt-1">
+              <h4 className="font-heading font-semibold text-sm flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-muted-foreground" /> Wall Street consensus
+              </h4>
+              <AnalystConsensus symbol={quote.symbol} />
+              <div className="border-t border-border pt-4">
+                <h4 className="font-heading font-semibold text-sm flex items-center gap-1.5 mb-3">
+                  <Sparkles className="w-4 h-4 text-red-600" /> AI recommendation
+                </h4>
+                <AiRating symbol={quote.symbol} />
+              </div>
             </div>
 
             {news.length > 0 && (

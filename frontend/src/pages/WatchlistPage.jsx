@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SymbolSearch from "@/components/SymbolSearch";
 import PriceAlertDialog from "@/components/PriceAlertDialog";
 import DigestCard from "@/components/DigestCard";
+import StockIdeas from "@/components/StockIdeas";
+import { ConsensusBadge } from "@/components/Recommendation";
 import { Plus, X, Star, Loader2, Sparkles, Bell, BellRing, ArrowUpDown } from "lucide-react";
 import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
 import { toast } from "sonner";
@@ -141,6 +143,7 @@ export default function WatchlistPage() {
                     <Badge variant="secondary" className="text-[9px] font-num">{q.exchange}</Badge>
                   </div>
                   <div className="text-xs text-muted-foreground truncate">{q.name}</div>
+                  <ConsensusBadge ratingKey={q.consensus_key} className="mt-1" />
                 </div>
 
                 <div className="hidden md:block flex-1 min-w-0">
@@ -209,6 +212,8 @@ export default function WatchlistPage() {
       </Dialog>
 
       <PriceAlertDialog quote={alertQuote} onClose={() => setAlertQuote(null)} onChanged={setAlerts} />
+
+      {data && <StockIdeas key={(data.symbols || []).join(",")} onAdded={setData} />}
     </div>
   );
 }
