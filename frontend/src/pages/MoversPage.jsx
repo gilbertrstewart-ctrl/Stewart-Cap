@@ -5,7 +5,7 @@ import StockCard from "@/components/StockCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUp, ArrowDown, Flame, Sparkles, Loader2, TrendingUp, TrendingDown, Bell } from "lucide-react";
-import { fmtPct } from "@/utils/format";
+import { fmtPrice } from "@/utils/format";
 
 export default function MoversPage() {
   const { openStockDetail, openAiAnalysis } = useModals();
@@ -88,7 +88,7 @@ export default function MoversPage() {
                       <Bell className="w-3 h-3 mr-1" /> {q.at_high ? "At high" : `${q.pct_from_high}%`}
                     </Badge>
                   }
-                  footer={<Footer label="Below 52W high" value={`${q.pct_from_high}%`} />} />
+                  footer={<Footer label="Below 52W high" value={`-${fmtPrice(q.high_52 - q.price)} (${q.pct_from_high}%)`} />} />
               ))}
             </Grid>
           </TabsContent>
@@ -99,7 +99,7 @@ export default function MoversPage() {
               {data.near_low.map((q) => (
                 <StockCard key={q.symbol} quote={q} testid={`low-mover-${q.symbol}`} onOpen={() => openStockDetail(q.symbol)}
                   right={<Badge className="border-0 bg-red-600/10 text-red-600"><ArrowDown className="w-3 h-3 mr-1" /> {q.pct_from_low}%</Badge>}
-                  footer={<Footer label="Above 52W low" value={`${q.pct_from_low}%`} />} />
+                  footer={<Footer label="Above 52W low" value={`+${fmtPrice(q.price - q.low_52)} (${q.pct_from_low}%)`} />} />
               ))}
             </Grid>
           </TabsContent>

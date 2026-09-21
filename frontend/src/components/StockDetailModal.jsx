@@ -148,13 +148,13 @@ export default function StockDetailModal({ symbol, onClose }) {
             {quote.near_high && (
               <div data-testid="detail-nearhigh-alert" className="flex items-center gap-2 rounded-lg bg-green-600/10 text-green-700 px-3 py-2 text-sm">
                 <Bell className="w-4 h-4" />
-                {quote.at_high ? "Trading at its 52-week high" : `Only ${quote.pct_from_high}% below its 52-week high`}
+                {quote.at_high ? "Trading at its 52-week high" : `Only ${fmtPrice(quote.high_52 - quote.price)} (${quote.pct_from_high}%) below its 52-week high`}
               </div>
             )}
             {quote.near_low && (
               <div data-testid="detail-nearlow-alert" className="flex items-center gap-2 rounded-lg bg-red-600/10 text-red-600 px-3 py-2 text-sm">
                 <Bell className="w-4 h-4" />
-                {`Only ${quote.pct_from_low}% above its 52-week low`}
+                {`Only ${fmtPrice(quote.price - quote.low_52)} (${quote.pct_from_low}%) above its 52-week low`}
               </div>
             )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">

@@ -10,7 +10,7 @@ import ArticleEditor from "@/components/ArticleEditor";
 import Comments from "@/components/Comments";
 import ShareButton from "@/components/ShareButton";
 import { ArrowLeft, Pencil, Trash2, Lock, Globe, Clock, Loader2, Bookmark, BookmarkCheck } from "lucide-react";
-import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
+import { fmtPrice, fmtChange, trendColor } from "@/utils/format";
 import { toast } from "sonner";
 
 export default function ArticlePage() {
@@ -92,7 +92,7 @@ export default function ArticlePage() {
         <div className="flex gap-2 flex-wrap" data-testid="article-tickers">
           {article.ticker_quotes.map((q) => (
             <button key={q.symbol} onClick={() => openStockDetail(q.symbol)} data-testid={`article-ticker-${q.symbol}`} className="rounded-lg border border-border bg-card px-3 py-2 text-left hover:border-primary/40 hover:bg-secondary transition-colors">
-              <div className="flex items-center gap-2"><span className="font-heading font-bold text-sm">{q.symbol}</span><span className="font-num text-sm">{fmtPrice(q.price)}</span><span className={`font-num text-xs ${trendColor(q.change_percent)}`}>{fmtPct(q.change_percent)}</span></div>
+              <div className="flex items-center gap-2"><span className="font-heading font-bold text-sm">{q.symbol}</span><span className="font-num text-sm">{fmtPrice(q.price)}</span><span className={`font-num text-xs ${trendColor(q.change_percent)}`}>{fmtChange(q.change, q.change_percent)}</span></div>
               <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">{q.name}</div>
             </button>
           ))}

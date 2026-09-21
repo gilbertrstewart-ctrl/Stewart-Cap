@@ -138,7 +138,7 @@ async def get_article(article_id: str, user: Optional[dict] = Depends(optional_u
     for s in a.get("tickers", []):
         if s in UNIVERSE or await register_symbol(s):
             qq = quote(s)
-            a["ticker_quotes"].append({k: qq[k] for k in ("symbol", "name", "price", "change_percent", "exchange")})
+            a["ticker_quotes"].append({k: qq[k] for k in ("symbol", "name", "price", "change", "change_percent", "exchange")})
     return a
 
 

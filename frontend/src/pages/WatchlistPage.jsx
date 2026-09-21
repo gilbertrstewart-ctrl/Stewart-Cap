@@ -12,7 +12,7 @@ import DigestCard from "@/components/DigestCard";
 import StockIdeas from "@/components/StockIdeas";
 import { ConsensusBadge } from "@/components/Recommendation";
 import { Plus, X, Star, Loader2, Sparkles, Bell, BellRing, ArrowUpDown } from "lucide-react";
-import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
+import { fmtPrice, fmtChange, trendColor } from "@/utils/format";
 import { toast } from "sonner";
 
 const SORTS = {
@@ -159,13 +159,13 @@ export default function WatchlistPage() {
 
                 {q.near_high && (
                   <span data-testid={`watch-nearhigh-${q.symbol}`} className="hidden lg:inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-green-600/15 text-green-700 shrink-0">
-                    <Bell className="w-3 h-3" /> {q.at_high ? "At 52W high" : `${q.pct_from_high}% from high`}
+                    <Bell className="w-3 h-3" /> {q.at_high ? "At 52W high" : `${fmtPrice(q.high_52 - q.price)} (${q.pct_from_high}%) from high`}
                   </span>
                 )}
 
                 <div className="w-24 sm:w-28 text-right shrink-0">
                   <div className="font-num text-lg font-bold">{fmtPrice(q.price)}</div>
-                  <div className={`font-num text-xs ${trendColor(q.change_percent)}`}>{fmtPct(q.change_percent)}</div>
+                  <div className={`font-num text-xs ${trendColor(q.change_percent)}`} data-testid={`watch-change-${q.symbol}`}>{fmtChange(q.change, q.change_percent)}</div>
                 </div>
 
                 <button

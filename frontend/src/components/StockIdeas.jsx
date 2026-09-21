@@ -4,7 +4,7 @@ import { useModals } from "@/context/ModalContext";
 import { Badge } from "@/components/ui/badge";
 import { ConsensusBadge } from "@/components/Recommendation";
 import { Lightbulb, Plus, Loader2, Check } from "lucide-react";
-import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
+import { fmtPrice, fmtChange, trendColor } from "@/utils/format";
 import { toast } from "sonner";
 
 export default function StockIdeas({ onAdded }) {
@@ -57,7 +57,7 @@ export default function StockIdeas({ onAdded }) {
               </div>
               <div className="text-right shrink-0">
                 <div className="font-num font-semibold">{fmtPrice(s.price)}</div>
-                <div className={`font-num text-xs ${trendColor(s.change_percent)}`}>{fmtPct(s.change_percent)}</div>
+                <div className={`font-num text-xs ${trendColor(s.change_percent)}`}>{fmtChange(s.change, s.change_percent)}</div>
               </div>
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">

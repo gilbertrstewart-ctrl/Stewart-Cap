@@ -73,3 +73,7 @@ Build an app to track investments, a stock watchlist, stocks reaching 52-week hi
 - Article comments (public articles; author/admin delete), bookmarks (Save + "Saved" scope), weekly newsletter (Fridays 08:00 ET to digest subscribers; /api/newsletter/preview|send; APP_PUBLIC_URL in backend .env for links), portfolio value chart (GET /api/portfolio/history?range=1W|1M|3M|1Y).
 - Market overview strip under navbar: TSX Composite, NASDAQ, S&P 500, Dow, Crude (CL=F), Bitcoin, CAD→USD (GET /api/market/overview, 60s cache).
 - Color rule (user): UP = green, DOWN = red everywhere (trendColor/trendHex/tapeTrendColor); brand stays red/white/blue on light-blue bg.
+
+## 2026-06 — Iteration 9 (tested: iteration_9.json) + display rule
+- Dividend Tracker (GET /api/portfolio/dividends; DividendCard on Dashboard), Percent alerts (alerts.kind = price|pct), Share button on public articles (copy/X/LinkedIn/email), CAD/USD portfolio toggle (summary_cad/summary_usd, fx, history?currency=).
+- Display rule (user): every increase/decrease shows dollars & cents AND percent, e.g. "+2.76 (+1.24%)" — helper fmtChange in utils/format.js, used in ticker, market strip, watchlist, movers, ideas, search, article ticker chips, 52W distance badges. (Self-tested via screenshot.)

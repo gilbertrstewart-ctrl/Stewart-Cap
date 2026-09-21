@@ -1,6 +1,6 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
-import { fmtPrice, fmtPct, trendColor, trendBg } from "@/utils/format";
+import { fmtPrice, fmtChange, trendColor, trendBg } from "@/utils/format";
 
 export default function StockCard({ quote, onOpen, right, footer, testid }) {
   return (
@@ -22,7 +22,7 @@ export default function StockCard({ quote, onOpen, right, footer, testid }) {
       <div className="mt-3 flex items-end justify-between">
         <div className="font-num text-xl font-bold tracking-tight">{fmtPrice(quote.price)}</div>
         <div className={`font-num text-sm font-semibold px-2 py-0.5 rounded-md ${trendColor(quote.change_percent)} ${trendBg(quote.change_percent)}`}>
-          {fmtPct(quote.change_percent)}
+          {fmtChange(quote.change, quote.change_percent)}
         </div>
       </div>
       {footer}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { fmtPrice, fmtPct, tapeTrendColor } from "@/utils/format";
+import { fmtPrice, fmtChange, tapeTrendColor } from "@/utils/format";
 import { useModals } from "@/context/ModalContext";
 import { useAuth } from "@/context/AuthContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -57,7 +57,7 @@ export default function TickerTape() {
               >
                 <span className="text-white font-semibold">{q.symbol}</span>
                 <span className="text-white/70">{fmtPrice(q.price)}</span>
-                <span className={tapeTrendColor(q.change_percent)}>{fmtPct(q.change_percent)}</span>
+                <span className={tapeTrendColor(q.change_percent)}>{fmtChange(q.change, q.change_percent)}</span>
               </button>
             ))}
           </div>

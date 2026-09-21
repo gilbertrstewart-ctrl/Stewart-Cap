@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2, CornerDownLeft } from "lucide-react";
-import { fmtPrice, fmtPct, trendColor } from "@/utils/format";
+import { fmtPrice, fmtChange, trendColor } from "@/utils/format";
 import { Badge } from "@/components/ui/badge";
 
 export default function SymbolSearch({ onSelect, selected }) {
@@ -84,7 +84,7 @@ export default function SymbolSearch({ onSelect, selected }) {
             </div>
             <div className="text-right shrink-0">
               <div className="font-num text-sm">{fmtPrice(s.price)}</div>
-              <div className={`font-num text-xs ${trendColor(s.change_percent)}`}>{fmtPct(s.change_percent)}</div>
+              <div className={`font-num text-xs ${trendColor(s.change_percent)}`}>{fmtChange(s.change, s.change_percent)}</div>
             </div>
           </button>
         ))}

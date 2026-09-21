@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { TrendingUp, TrendingDown, Landmark, Fuel, Bitcoin, ArrowLeftRight } from "lucide-react";
-import { fmtPct, trendColor, trendBg } from "@/utils/format";
+import { fmtChange, trendColor, trendBg } from "@/utils/format";
 
 const ICONS = { index: Landmark, commodity: Fuel, crypto: Bitcoin, fx: ArrowLeftRight };
 
@@ -43,7 +43,7 @@ export default function MarketOverview() {
                   <span className="font-num text-sm font-semibold">{fmt(it)}</span>
                   <span className={`font-num text-xs inline-flex items-center gap-0.5 ${trendColor(it.change_percent)}`} data-testid={`overview-change-${it.symbol}`}>
                     {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {fmtPct(it.change_percent)}
+                    {fmtChange(it.change, it.change_percent, it.kind === "fx" ? 4 : 2)}
                   </span>
                 </div>
               </div>

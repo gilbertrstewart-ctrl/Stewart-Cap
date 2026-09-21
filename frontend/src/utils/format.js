@@ -29,3 +29,11 @@ export const trendColor = (n) => (Number(n) >= 0 ? "text-green-600 dark:text-gre
 export const trendBg = (n) => (Number(n) >= 0 ? "bg-green-600/10" : "bg-red-600/10");
 export const trendHex = (n) => (Number(n) >= 0 ? "#16A34A" : "#DC2626");
 export const tapeTrendColor = (n) => (Number(n) >= 0 ? "text-green-400" : "text-red-500");
+
+// "+1.23 (+0.55%)" — dollar change and percent together
+export const fmtChange = (change, pct, decimals = 2) => {
+  if (change == null && pct == null) return "—";
+  const c = Number(change || 0);
+  const sign = c >= 0 ? "+" : "-";
+  return `${sign}${Math.abs(c).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} (${fmtPct(pct)})`;
+};
